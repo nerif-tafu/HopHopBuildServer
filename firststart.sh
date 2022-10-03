@@ -62,7 +62,7 @@ generateConfig () {
 
 installSteamCMD () {
     echo "New install, downloading SteamCMD."
-    sudo apt install lib32gcc-s1 ubuntu-desktop -y
+    sudo apt install lib32gcc-s1 ubuntu-desktop screen -y
     curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf -
 }
 
@@ -103,9 +103,10 @@ After=network.target
 
 [Service]
 ExecStart=${INSTALLDIR}/firststart.sh
-Type=simple
+Type=simple 
 User=root
 Group=root
+TimeoutStopUSec=infinity
 
 [Install]
 WantedBy=multi-user.target
@@ -120,7 +121,10 @@ EOF
 setupFirewall() {
     echo "Checking firewall settings."
     echo "y" | sudo ufw enable 1>/dev/null
-    sudo ufw allow 28015:28020/tcp 1>/dev/null
+    sudo ufw allow 28015:28016/tcp 1>/dev/null
+    sudo ufw allow 28015:28016/udp 1>/dev/null
+    sudo ufw allow 28082/tcp 1>/dev/null
+    sudo ufw reload
 }
 
 startRustServer() {
@@ -129,14 +133,12 @@ startRustServer() {
         echo "Please run 'sudo systemctl start hophopbuildserver-${UUID}.service' to start the server."
         echo "You will not need to run this command in the future, the server will start automatically on boot/crash"
     else
-        while true; do
-            echo "Starting server!"
-            export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${INSTALLDIR}/rustServer/RustDedicated_Data/Plugins/x86_64
-            export TERM=xterm
-            cd ${INSTALLDIR}/rustServer
-            exec ${INSTALLDIR}/rustServer/RustDedicated -batchmode -nographics -server.port 28015 -rcon.port 28016 -rcon.password "${RCONPASS}" -server.maxplayers 75 -server.hostname "${HOSTNAME}" -server.identity "ident1" -server.level "Procedural Map" -server.seed 123453353324673 -server.worldsize 4200 -server.saveinterval 300 -server.globalchat true -server.description "${SERVERDESC}" -server.headerimage "${SERVERIMG}" -server.url "${SERVERURL}" 
-            echo "\nRestarting server...\n" done
-        done
+        echo "Starting server!"
+        # screen -S hophopbuildserver-${UUID} -dm bash -c "export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${INSTALLDIR}/rustServer/RustDedicated_Data/Plugins/x86_64; export TERM=xterm; cd ${INSTALLDIR}/rustServer; exec ${INSTALLDIR}/rustServer/RustDedicated -batchmode -nographics -server.port 28015 -rcon.port 28016 -rcon.password "${RCONPASS}" -server.maxplayers 75 -server.hostname "${HOSTNAME}" -server.identity "ident1" -server.level "Procedural Map" -server.seed 123453353324673 -server.worldsize 4200 -server.saveinterval 300 -server.globalchat true -server.description "${SERVERDESC}" -server.headerimage "${SERVERIMG}" -server.url "${SERVERURL}"; sleep 10"
+        export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${INSTALLDIR}/rustServer/RustDedicated_Data/Plugins/x86_64 
+        export TERM=xterm
+        cd ${INSTALLDIR}/rustServer
+        exec ${INSTALLDIR}/rustServer/RustDedicated -batchmode -nographics -server.port 28015 -rcon.port 28016 -rcon.password "${RCONPASS}" -server.maxplayers 75 -server.hostname "${HOSTNAME}" -server.identity "ident1" -server.level "Procedural Map" -server.seed 123453353324673 -server.worldsize 4200 -server.saveinterval 300 -server.globalchat true -server.description "${SERVERDESC}" -server.headerimage "${SERVERIMG}" -server.url "${SERVERURL}"
     fi
 }
     
