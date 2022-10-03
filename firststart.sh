@@ -1,9 +1,10 @@
 #!/bin/bash
 
-if [[ $(/usr/bin/id -u) -ne 0 ]]; then
-    echo "Not running as root, please run with sudo."
-    exit
-fi
+#if [[ $(/usr/bin/id -u) -ne 0 ]]; then
+#    echo "Not running as root, please run with sudo."
+#    exit
+#fi
+sudo echo "Elevated"
 
 STEAMCMD=./steamcmd.sh
 INSTALLDIR=$(realpath "$0" | sed 's|\(.*\)/.*|\1|')
@@ -68,7 +69,7 @@ installSteamCMD () {
 updateRustSteamCMD () {
     echo "Checking for Rust update."
     mkdir -p $INSTALLDIR/rustServer
-    $INSTALLDIR/steamcmd.sh +force_install_dir $INSTALLDIR/rustServer +login anonymous +app_update 258550 +quit > /dev/null
+    $INSTALLDIR/steamcmd.sh +force_install_dir $INSTALLDIR/rustServer +login anonymous +app_update 258550 validate +quit
 }
 
 updateuMod () {
@@ -96,7 +97,7 @@ setupService () {
     if [ ! -f "/etc/systemd/system/hophopbuildserver-${UUID}.service" ]; then
         echo "Creating and enabling systemd service for /etc/systemd/system/hophopbuildserver-${UUID}."
         
-        tee -a /etc/systemd/system/hophopbuildserver-${UUID}.service <<-EOF >/dev/null
+        sudo tee -a /etc/systemd/system/hophopbuildserver-${UUID}.service <<-EOF >/dev/null
 [Unit]
 After=network.target
 
@@ -118,8 +119,8 @@ EOF
 
 setupFirewall() {
     echo "Checking firewall settings."
-    echo "y" | ufw enable 1>/dev/null
-    ufw allow 28015:28020/tcp 1>/dev/null
+    echo "y" | sudo ufw enable 1>/dev/null
+    sudo ufw allow 28015:28020/tcp 1>/dev/null
 }
 
 startRustServer() {
@@ -131,24 +132,9 @@ startRustServer() {
         while true; do
             echo "Starting server!"
             export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${INSTALLDIR}/rustServer/RustDedicated_Data/Plugins/x86_64
-
             export TERM=xterm
-            exec ${INSTALLDIR}/rustServer/RustDedicated -batchmode -nographics \
-            -server.port 28015 \
-            -rcon.port 28016 \
-            -rcon.password "${RCONPASS}" \
-            -server.maxplayers 75 \
-            -server.hostname "${HOSTNAME}" \
-            -server.identity "ident1" \
-            -server.level "Procedural Map" \
-            -server.seed 123453353324673 \
-            -server.worldsize 4200 \
-            -server.saveinterval 300 \
-            -server.globalchat true \
-            -server.description "${SERVERDESC}" \
-            -server.headerimage "${SERVERIMG}" \
-            -server.url "${SERVERURL}" \
-            -logFile "${INSTALLDIR}/rustLogs.txt"
+            cd ${INSTALLDIR}/rustServer
+            exec ${INSTALLDIR}/rustServer/RustDedicated -batchmode -nographics -server.port 28015 -rcon.port 28016 -rcon.password "${RCONPASS}" -server.maxplayers 75 -server.hostname "${HOSTNAME}" -server.identity "ident1" -server.level "Procedural Map" -server.seed 123453353324673 -server.worldsize 4200 -server.saveinterval 300 -server.globalchat true -server.description "${SERVERDESC}" -server.headerimage "${SERVERIMG}" -server.url "${SERVERURL}" 
             echo "\nRestarting server...\n" done
         done
     fi
