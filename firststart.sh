@@ -6,7 +6,6 @@
 #fi
 sudo echo "Elevated"
 
-STEAMCMD=./steamcmd.sh
 INSTALLDIR=$(realpath "$0" | sed 's|\(.*\)/.*|\1|')
 UUID="NONE"
 FIRSTRUN=false
@@ -31,7 +30,6 @@ generateConfig () {
         echo "Please enter the server website URL"
         read SERVERURL
 
-        
         jq -n \
         --arg tempUUID "$UUID" \
         --arg tempRCONPASS "$RCONPASS" \
@@ -40,11 +38,11 @@ generateConfig () {
         --arg tempSERVERIMG "$SERVERIMG" \
         --arg tempSERVERURL "$SERVERURL" \
         '{
-            "ID":($tempUUID), 
-            "rconpass":($tempRCONPASS), 
-            "hostname":($tempHOSTNAME), 
-            "serverdesc":($tempSERVERDESC), 
-            "serverimg":($tempSERVERIMG), 
+            "ID":($tempUUID),
+            "rconpass":($tempRCONPASS),
+            "hostname":($tempHOSTNAME),
+            "serverdesc":($tempSERVERDESC),
+            "serverimg":($tempSERVERIMG),
             "serverurl":($tempSERVERURL)
         }' > config.json
         touch rustLogs.txt
@@ -63,13 +61,17 @@ generateConfig () {
 installSteamCMD () {
     echo "New install, downloading SteamCMD."
     sudo apt install lib32gcc-s1 ubuntu-desktop screen -y
-    curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf -
+    sudo add-apt-repository multiverse -y
+    sudo apt install software-properties-common -y
+    sudo dpkg --add-architecture i386
+    sudo apt update
+    sudo apt install lib32gcc-s1 steamcmd -y
 }
 
 updateRustSteamCMD () {
     echo "Checking for Rust update."
     mkdir -p $INSTALLDIR/rustServer
-    $INSTALLDIR/steamcmd.sh +force_install_dir $INSTALLDIR/rustServer +login anonymous +app_update 258550 validate +quit
+    steamcmd +force_install_dir $INSTALLDIR/rustServer +login anonymous +app_update 258550 validate +quit
 }
 
 updateuMod () {
@@ -82,11 +84,11 @@ updateuMod () {
         echo "uMod already updated to latest version."
     else
         echo "Downloading new uMod update."
-        wget https://umod.org/games/rust/download/develop -O "$INSTALLDIR/tmp/$LATESTUMODVER" -q 
+        wget https://umod.org/games/rust/download/develop -O "$INSTALLDIR/tmp/$LATESTUMODVER" -q
         if [[ $? -ne 0 ]]; then
             echo "Could not download uMod update. Exiting"
             echo "${date}: Failed uMod download" >> /var/log/hophopbuildserver$UUID
-            exit 1; 
+            exit 1;
         fi
         echo "Extracting and installing uMod."
         unzip -f -q "$INSTALLDIR/tmp/$LATESTUMODVER" -d $INSTALLDIR/rustServer
@@ -96,14 +98,13 @@ updateuMod () {
 setupService () {
     if [ ! -f "/etc/systemd/system/hophopbuildserver-${UUID}.service" ]; then
         echo "Creating and enabling systemd service for /etc/systemd/system/hophopbuildserver-${UUID}."
-        
         sudo tee -a /etc/systemd/system/hophopbuildserver-${UUID}.service <<-EOF >/dev/null
 [Unit]
 After=network.target
 
 [Service]
 ExecStart=${INSTALLDIR}/firststart.sh
-Type=simple 
+Type=simple
 User=root
 Group=root
 TimeoutStopUSec=infinity
@@ -141,10 +142,9 @@ startRustServer() {
         exec ${INSTALLDIR}/rustServer/RustDedicated -batchmode -nographics -server.port 28015 -rcon.port 28016 -rcon.password "${RCONPASS}" -server.maxplayers 75 -server.hostname "${HOSTNAME}" -server.identity "ident1" -server.level "Procedural Map" -server.seed 123453353324673 -server.worldsize 4200 -server.saveinterval 300 -server.globalchat true -server.description "${SERVERDESC}" -server.headerimage "${SERVERIMG}" -server.url "${SERVERURL}"
     fi
 }
-    
-# Begin orchestration
 
-if [ ! -f "$STEAMCMD" ]; then
+# Begin orchestration
+if dpkg -s steamcmd &> /dev/null ; then
     installSteamCMD
 fi
 
