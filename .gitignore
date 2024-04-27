@@ -1,4 +1,3 @@
-rustLogs.txt
-config.json
-rustServer/
-tmp
+rust_server/*
+steam_cmd/*
+tmp/*
