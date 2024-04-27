@@ -2,13 +2,13 @@ import os
 import subprocess
 import requests
 import json
-import zipfile
+import tarfile
 from pysteamcmdwrapper import SteamCMD, SteamCMDException
 
 # Variable defs.
 RUST_ID = 258550
 
-PATH_ROOT = os.getcwd()
+PATH_ROOT = os.path.realpath(os.path.dirname(__file__))
 PATH_RUST_SERVER = os.path.join(PATH_ROOT,"rust_server")
 PATH_STEAM_CMD = os.path.join(PATH_ROOT,"steam_cmd")
 PATH_TMP = os.path.join(PATH_ROOT,"tmp")
@@ -35,35 +35,60 @@ def base_install():
     s.app_update(RUST_ID,PATH_RUST_SERVER,validate=True)
 
     try:
-        # Fetching latest uMod version
-        response = requests.get("https://assets.umod.org/games/rust.json")
+        download_url = "https://github.com/CarbonCommunity/Carbon/releases/download/production_build/Carbon.Linux.Release.tar.gz"
+        response = requests.get(download_url)
         response.raise_for_status()
-        umod_data = response.json()
-        latest_umod_ver = umod_data["latest_release_version"]
 
-        # Check if uMod is already updated to the latest version
-        umod_update_path = os.path.join(PATH_TMP, latest_umod_ver)
+        with open(os.path.join(PATH_TMP, "carbon.tar.gz"), "wb") as f:
+            f.write(response.content)
 
-        if os.path.isfile(umod_update_path):
-            print("uMod already updated to the latest version:", latest_umod_ver)
-        else:
-            print("Downloading new uMod update:", latest_umod_ver)
-            # Downloading uMod update
-            download_url = f"https://umod.org/games/rust/download/{latest_umod_ver}"
-            download_path = os.path.join(PATH_TMP, latest_umod_ver)
-            response = requests.get(download_url)
-            response.raise_for_status()
-            with open(download_path, "wb") as f:
-                f.write(response.content)
-                
-            # Extracting and installing uMod
-            print("Extracting and installing uMod.")
-            with zipfile.ZipFile(download_path, "r") as zip_ref:
-                zip_ref.extractall(PATH_RUST_SERVER)
-
+        # Extracting and installing Carbon
+        print("Extracting and installing Carbon.")
+        with tarfile.open(os.path.join(PATH_TMP, "carbon.tar.gz"), "r:gz") as tar_ref:
+            tar_ref.extractall(PATH_RUST_SERVER)
     except Exception as e:
-        print("Error occurred during uMod update:", e)
+        print("Error occurred during Carbon update:", e)
 
+    
+
+def start_rust_server():
+    # User settings
+    SERVER_NAME = "CARBON | env:linux branch:preview"
+    SERVER_MAP_SIZE = 1000
+    SERVER_MAP_SEED = 12345
+    SERVER_PORT = 28015
+    SERVER_QUERY = 28016
+    SERVER_RCON_PORT = 28017
+    SERVER_RCON_PASS = "mypasslol"
+
+    # Exporting environment variables
+    os.environ["LD_LIBRARY_PATH"] = os.path.join(PATH_RUST_SERVER, "RustDedicated_Data", "Plugins", "x86_64")
+    os.environ["TERM"] = "xterm"
+
+    # Changing directory
+    os.chdir(PATH_RUST_SERVER)
+
+    # Running RustDedicated server
+    command = [
+        os.path.join(PATH_RUST_SERVER, "RustDedicated"),
+        "-batchmode",
+        "+server.secure", "1",
+        "+server.tickrate", "30",
+        "+server.identity", "carbon",
+        "+server.port", str(SERVER_PORT),
+        "+server.queryport", str(SERVER_QUERY),
+        "+rcon.port", str(SERVER_RCON_PORT),
+        "+server.hostname", SERVER_NAME,
+        "+server.seed", str(SERVER_MAP_SEED),
+        "+server.worldsize", str(SERVER_MAP_SIZE),
+        "+rcon.password", SERVER_RCON_PASS,
+        "+rcon.web", "true",
+        "+server.maxplayers", "8",
+        "+app.port", "1-"
+    ]
+
+    subprocess.run(command)
 
 if __name__ == "__main__":
     base_install()
+    start_rust_server()
