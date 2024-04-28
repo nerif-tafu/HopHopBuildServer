@@ -49,25 +49,52 @@ def base_install():
     except Exception as e:
         print("Error occurred during Carbon update:", e)
 
-    
-
 def start_rust_server():
     # User settings
     SERVER_NAME = "CARBON | env:linux branch:preview"
-    SERVER_MAP_SIZE = 1000
+    SERVER_MAP_SIZE = 4800
     SERVER_MAP_SEED = 12345
     SERVER_PORT = 28015
     SERVER_QUERY = 28016
     SERVER_RCON_PORT = 28017
     SERVER_RCON_PASS = "mypasslol"
 
-    # Exporting environment variables
-    os.environ["LD_LIBRARY_PATH"] = os.path.join(PATH_RUST_SERVER, "RustDedicated_Data", "Plugins", "x86_64")
-    os.environ["TERM"] = "xterm"
+    # Define the list of users
+    users = [
+        "76561198183150138 \"Clayton (Rust)\"",
+        "76561198091394287 \"Demonic\"",
+        "76561198804286062 \"Ed\"",
+        "76561198056409776 \"Finn\"",
+        "76561198299291090 \"Gleb\"",
+        "76561198017536117 \"Gringo\"",
+        "76561198110905826 \"Jamie\"",
+        "76561198009503041 \"Kaas\"",
+        "76561198043994008 \"Kristian\"",
+        "76561198072387032 \"Maze\"",
+        "76561198398810414 \"Nora\"",
+        "76561197996896290 \"Padzor\"",
+        "76561198287027907 \"Pidge\"",
+        "76561198227557712 \"Razzey\"",
+        "76561197972768339 \"Robbin\"",
+        "76561198215723943 \"Tom\"",
+        "76561199003344794 \"Zapio\""
+    ]
+
+    file_path = os.path.join(PATH_RUST_SERVER, "server", "carbon", "cfg", "users.cfg")
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+    with open(file_path, "w") as file:
+        file.write("\n".join(users))
 
     # Changing directory
     os.chdir(PATH_RUST_SERVER)
-
+    
+    os.environ["TERM"] = "xterm"
+    os.environ["DOORSTOP_ENABLED"] = "1"
+    os.environ["DOORSTOP_TARGET_ASSEMBLY"] = os.path.join(PATH_RUST_SERVER, "carbon/managed/Carbon.Preloader.dll")
+    os.environ["LD_PRELOAD"] = os.path.join(PATH_RUST_SERVER, "libdoorstop.so")
+    os.environ["LD_LIBRARY_PATH"] = os.path.join(PATH_RUST_SERVER, "RustDedicated_Data", "Plugins", "x86_64")
+    
     # Running RustDedicated server
     command = [
         os.path.join(PATH_RUST_SERVER, "RustDedicated"),
