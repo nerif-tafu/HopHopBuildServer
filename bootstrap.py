@@ -3,6 +3,7 @@ import subprocess
 import requests
 import json
 import tarfile
+import shutil
 from pysteamcmdwrapper import SteamCMD, SteamCMDException
 
 # Variable defs.
@@ -10,8 +11,10 @@ RUST_ID = 258550
 
 PATH_ROOT = os.path.realpath(os.path.dirname(__file__))
 PATH_RUST_SERVER = os.path.join(PATH_ROOT,"rust_server")
+PATH_RUST_PLUGINS = os.path.join(PATH_RUST_SERVER,"carbon","plugins")
 PATH_STEAM_CMD = os.path.join(PATH_ROOT,"steam_cmd")
 PATH_TMP = os.path.join(PATH_ROOT,"tmp")
+PATH_SCRIPTS = os.path.join(PATH_ROOT,"scripts")
 
 os.makedirs(PATH_RUST_SERVER, exist_ok=True)
 os.makedirs(PATH_STEAM_CMD, exist_ok=True)
@@ -34,6 +37,7 @@ def base_install():
 
     s.app_update(RUST_ID,PATH_RUST_SERVER,validate=True)
 
+    # Install Carbon modding framework.
     try:
         download_url = "https://github.com/CarbonCommunity/Carbon/releases/download/production_build/Carbon.Linux.Release.tar.gz"
         response = requests.get(download_url)
@@ -42,22 +46,47 @@ def base_install():
         with open(os.path.join(PATH_TMP, "carbon.tar.gz"), "wb") as f:
             f.write(response.content)
 
-        # Extracting and installing Carbon
+        # Extracting and installing Carbon.
         print("Extracting and installing Carbon.")
         with tarfile.open(os.path.join(PATH_TMP, "carbon.tar.gz"), "r:gz") as tar_ref:
             tar_ref.extractall(PATH_RUST_SERVER)
     except Exception as e:
         print("Error occurred during Carbon update:", e)
 
+    # Delete all scripts in PATH_RUST_PLUGINS
+    print("Removing old Carbon plugins.")
+    for item in os.listdir(PATH_RUST_PLUGINS):
+        item_path = os.path.join(PATH_RUST_PLUGINS, item)
+        try:
+            if os.path.isdir(item_path):
+                shutil.rmtree(item_path)
+            else:
+                os.remove(item_path)
+        except Exception as e:
+            print(f"Error occurred while deleting {item_path}: {e}")
+
+    # Install all scripts from PATH_SCRIPTS.
+    print("Installing new Carbon plugins.")
+    for item in os.listdir(PATH_SCRIPTS):
+        s = os.path.join(PATH_SCRIPTS, item)
+        d = os.path.join(PATH_RUST_PLUGINS, item)
+        try:
+            if os.path.isdir(s):
+                shutil.copytree(s, d, dirs_exist_ok=True)
+            else:
+                shutil.copy2(s, d)
+        except Exception as e:
+            print(f"Error occurred while copying {s} to {d}: {e}")
+
 def start_rust_server():
     # User settings
-    SERVER_NAME = "CARBON | env:linux branch:preview"
+    SERVER_NAME = "HopHop Build server | Main"
     SERVER_MAP_SIZE = 4800
     SERVER_MAP_SEED = 12345
     SERVER_PORT = 28015
     SERVER_QUERY = 28016
     SERVER_RCON_PORT = 28017
-    SERVER_RCON_PASS = "mypasslol"
+    SERVER_RCON_PASS = "avoid-unelected-thee"
 
     # Define the list of users
     users = [
