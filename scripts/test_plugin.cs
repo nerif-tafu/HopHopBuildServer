@@ -9,7 +9,12 @@ namespace Carbon.Plugins
             Puts ( "Hello world!" );
             PrintToChat ("test");
         }
+        
+        private void OnPlayerInput(BasePlayer player, InputState input)
+        {
+            if(input.WasJustPressed(BUTTON.FIRE_THIRD)) {
+                Puts ( "Hello world!" );
+            }
+        }
     }
-
-
 }
