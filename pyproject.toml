@@ -1,0 +1,20 @@
+[project]
+name = "hophop-build-server"
+version = "0.1.0"
+description = "HopHop Rust Build Server"
+requires-python = ">=3.8"
+dependencies = [
+    "py-steamcmd-wrapper",
+    "psutil",
+    "python-dotenv",
+    "flask",
+    "flask-socketio",
+    "simple-websocket",
+    "talisker",
+    "gunicorn",
+    "gevent"
+]
+
+[project.scripts]
+hophop-server = "hophop.bootstrap:main"
+hophop-web = "hophop.webapp:run_server" 
