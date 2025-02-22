@@ -1,9 +1,50 @@
 #!/bin/bash
 
+# Formatting functions
+format_setup() {
+    # Colors
+    export COLOR_RESET='\033[0m'
+    export COLOR_BLUE='\033[34m'
+    export COLOR_GREEN='\033[32m'
+    export COLOR_YELLOW='\033[33m'
+    export COLOR_RED='\033[31m'
+    
+    # Text styles
+    export BOLD='\033[1m'
+    export ITALIC='\033[3m'
+    export UNDERLINE='\033[4m'
+}
+
+print_header() {
+    echo
+    echo -e "${COLOR_BLUE}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${COLOR_RESET}"
+    echo -e "${COLOR_BLUE}${BOLD}  $1${COLOR_RESET}"
+    echo -e "${COLOR_BLUE}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${COLOR_RESET}"
+    echo
+}
+
+print_step() {
+    echo -e "${COLOR_YELLOW}${BOLD}→${COLOR_RESET} ${ITALIC}$1${COLOR_RESET}"
+}
+
+print_success() {
+    echo
+    echo -e "${COLOR_GREEN}${BOLD}✓${COLOR_RESET} ${BOLD}$1${COLOR_RESET}"
+    echo
+}
+
+print_warning() {
+    echo -e "${COLOR_RED}${BOLD}Warning:${COLOR_RESET} ${ITALIC}$1${COLOR_RESET}"
+}
+
+print_command() {
+    echo -e "    ${COLOR_BLUE}${BOLD}$1${COLOR_RESET}"
+}
+
 # Check if HopHopBuildServer already exists
 if [ -d "$HOME/HopHopBuildServer" ]; then
-    echo "Warning: HopHopBuildServer folder already exists in $HOME"
-    echo "Please remove or rename the existing folder before running this script"
+    print_warning "HopHopBuildServer folder already exists in $HOME"
+    echo -e "${ITALIC}Please remove or rename the existing folder before running this script${COLOR_RESET}"
     exit 1
 fi
 
@@ -18,39 +59,36 @@ get_input() {
 
 # Function to configure environment variables
 configure_env() {
-    echo "Would you like to review and modify the default server settings? (y/N)" > /dev/tty
+    print_header "Server Configuration"
+    echo -e "${ITALIC}Would you like to review and modify the default server settings? (y/N)${COLOR_RESET}" > /dev/tty
     response=$(get_input "> ")
     
     if [[ "$response" =~ ^[Yy] ]]; then
-        # Create or clear .env.local
         echo "# Custom server settings" > .env.local
         
-        # Read each non-comment line from .env
         while IFS='=' read -r key value; do
-            # Skip empty lines and comments
             [[ -z "$key" || "$key" =~ ^[[:space:]]*# ]] && continue
             
-            # Remove leading/trailing whitespace
             key=$(echo "$key" | xargs)
             value=$(echo "$value" | xargs)
             
-            echo > /dev/tty
-            echo "Current $key is: $value" > /dev/tty
-            echo "Would you like to change this value? (y/N)" > /dev/tty
+            echo
+            print_step "Setting: ${BOLD}$key${COLOR_RESET}"
+            echo -e "${ITALIC}Current value:${COLOR_RESET} ${BOLD}$value${COLOR_RESET}" > /dev/tty
+            echo -e "${ITALIC}Would you like to change this value? (y/N)${COLOR_RESET}" > /dev/tty
             change_response=$(get_input "> ")
             
             if [[ "$change_response" =~ ^[Yy] ]]; then
-                echo "Enter new value for $key:" > /dev/tty
+                echo -e "${ITALIC}Enter new value for $key:${COLOR_RESET}" > /dev/tty
                 new_value=$(get_input "> ")
                 echo "$key=$new_value" >> .env.local
-                echo "Updated $key to: $new_value" > /dev/tty
+                print_success "Updated $key to: ${BOLD}$new_value${COLOR_RESET}"
             fi
         done < .env
         
-        echo > /dev/tty
-        echo "Configuration complete! Custom settings saved to .env.local" > /dev/tty
+        print_success "Configuration complete! Custom settings saved to .env.local"
     else
-        echo "Skipping configuration. Default values will be used." > /dev/tty
+        print_step "Skipping configuration. Default values will be used."
     fi
 }
 
@@ -69,10 +107,18 @@ source venv/bin/activate
 
 pip install -e .
 
-echo "Installation complete! To start the flask server, run:
-source venv/bin/activate
-hophop-web
+# Add format setup at the start of the actual installation
+format_setup
 
-To start the rust server, run:
-source venv/bin/activate
-hophop-server"
+# Update the final installation message
+print_header "Installation Complete!"
+echo -e "${BOLD}To start the flask server, run:${COLOR_RESET}"
+echo
+print_command "source venv/bin/activate"
+print_command "hophop-web"
+echo
+echo -e "${BOLD}To start the rust server, run:${COLOR_RESET}"
+echo
+print_command "source venv/bin/activate"
+print_command "hophop-server"
+echo
