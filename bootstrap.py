@@ -38,7 +38,7 @@ def base_install():
     
     try:
         subprocess.run(["sudo", "add-apt-repository", "multiverse", "-y"])
-        subprocess.run(["sudo", "dpkg", "--add-architecture", "i386", "-y"])
+        subprocess.run(["sudo", "dpkg", "--add-architecture", "i386"])
         subprocess.run(["sudo", "apt", "update"])
         subprocess.run(["sudo", "apt", "install", "steamcmd", "-y"])
         print("SteamCMD installed successfully.")
