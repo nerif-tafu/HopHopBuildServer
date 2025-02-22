@@ -51,13 +51,13 @@ configure_env() {
     fi
 }
 
+# Run configuration before starting the server
+configure_env
+
 # Create virtual environment and install requirements
 python3 -m venv venv
 source venv/bin/activate
 pip3 install -r requirements.txt
-
-# Run configuration before starting the server
-configure_env
 
 # Start the server
 python3 bootstrap.py
