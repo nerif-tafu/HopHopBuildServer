@@ -7,16 +7,19 @@ if [ -d "$HOME/HopHopBuildServer" ]; then
     exit 1
 fi
 
-# Continue with installation if folder doesn't exist
-sudo apt install lib32stdc++6 python3-pip python3.12-venv git -y
-cd $HOME
-git clone https://github.com/nerif-tafu/HopHopBuildServer.git
-cd HopHopBuildServer
+# Function to get user input with timeout
+get_input() {
+    local prompt="$1"
+    local input
+    echo -n "$prompt"
+    read -t 30 input
+    echo "$input"
+}
 
 # Function to configure environment variables
 configure_env() {
     echo "Would you like to review and modify the default server settings? (y/N)"
-    read -r -p "> " response
+    response=$(get_input "> ")
     
     if [[ "$response" =~ ^[Yy] ]]; then
         # Create or clear .env.local
@@ -34,11 +37,11 @@ configure_env() {
             echo
             echo "Current $key is: $value"
             echo "Would you like to change this value? (y/N)"
-            read -r -p "> " change_response
+            change_response=$(get_input "> ")
             
             if [[ "$change_response" =~ ^[Yy] ]]; then
                 echo "Enter new value for $key:"
-                read -r -p "> " new_value
+                new_value=$(get_input "> ")
                 echo "$key=$new_value" >> .env.local
                 echo "Updated $key to: $new_value"
             fi
@@ -50,6 +53,12 @@ configure_env() {
         echo "Skipping configuration. Default values will be used."
     fi
 }
+
+# Continue with installation if folder doesn't exist
+sudo apt install lib32stdc++6 python3-pip python3.12-venv git -y
+cd $HOME
+git clone https://github.com/nerif-tafu/HopHopBuildServer.git
+cd HopHopBuildServer
 
 # Run configuration before starting the server
 configure_env
