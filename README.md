@@ -10,3 +10,8 @@ source venv/bin/activate
 pip3 install -r requirements.txt
 python3 bootstrap.py
 ```
+
+## Requirements
+- 30GB of free disk space
+- 12GB of RAM
+- 4 CPU Cores
