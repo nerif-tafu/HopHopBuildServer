@@ -3,6 +3,10 @@ name = "hophop-build-server"
 version = "0.1.0"
 description = "HopHop Rust Build Server"
 requires-python = ">=3.8"
+license = { file = "LICENSE" }
+authors = [
+    { name = "nerif-tafu" }
+]
 dependencies = [
     "py-steamcmd-wrapper",
     "psutil",
@@ -15,6 +19,13 @@ dependencies = [
     "gevent"
 ]
 
+[project.urls]
+repository = "https://github.com/nerif-tafu/HopHopBuildServer"
+
 [project.scripts]
-hophop-rust-server = "hophop.bootstrap:main"
-hophop-web-server = "hophop.webapp:run_server" 
+hophop-rust-server = "hophop.rust_server.server:start_rust_server"
+hophop-web-server = "hophop.web_server.server:run_server"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta" 
