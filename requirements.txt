@@ -1,3 +1,6 @@
 py-steamcmd-wrapper
 psutil
 python-dotenv
+flask
+flask-socketio
+simple-websocket

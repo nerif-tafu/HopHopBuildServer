@@ -5,8 +5,10 @@ import json
 import tarfile
 import shutil
 import psutil
+import threading
 from pysteamcmdwrapper import SteamCMD, SteamCMDException
 from dotenv import load_dotenv
+from server.app import start_flask
 
 def load_env_files():
     """Load environment variables from .env and .env.local files"""
@@ -186,8 +188,13 @@ def start_rust_server():
         "+app.port", "1-"
     ]
 
-    # Create a screen-friendly server name (remove spaces and special characters)
+    # Create a screen-friendly server name
     SCREEN_NAME = SERVER_NAME.lower().replace(" ", "_").replace("|", "").replace("\"", "").strip()
+    
+    # Start Flask server in a separate thread
+    flask_thread = threading.Thread(target=start_flask, args=(SCREEN_NAME,), daemon=True)
+    flask_thread.start()
+    print(f"\nWeb console available at http://localhost:5000")
     
     # Create the screen command
     screen_command = [
