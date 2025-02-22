@@ -22,6 +22,9 @@ os.makedirs(PATH_TMP, exist_ok=True)
 
 def base_install():
     try:
+        subprocess.run(["sudo", "add-apt-repository", "multiverse"])
+        subprocess.run(["sudo", "dpkg", "--add-architecture", "i386"])
+        subprocess.run(["sudo", "apt", "update"])
         subprocess.run(["sudo", "apt", "install", "steamcmd", "-y"])
         print("SteamCMD installed successfully.")
     except Exception as e:
