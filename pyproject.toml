@@ -16,5 +16,5 @@ dependencies = [
 ]
 
 [project.scripts]
-hophop-server = "hophop.bootstrap:main"
-hophop-web = "hophop.webapp:run_server" 
+hophop-rust-server = "hophop.bootstrap:main"
+hophop-web-server = "hophop.webapp:run_server" 

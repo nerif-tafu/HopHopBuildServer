@@ -114,11 +114,13 @@ format_setup
 print_header "Installation Complete!"
 echo -e "${BOLD}To start the flask server, run:${COLOR_RESET}"
 echo
+print_command "cd $HOME/HopHopBuildServer"
 print_command "source venv/bin/activate"
-print_command "hophop-web"
+print_command "hophop-web-server"
 echo
 echo -e "${BOLD}To start the rust server, run:${COLOR_RESET}"
 echo
+print_command "cd $HOME/HopHopBuildServer"
 print_command "source venv/bin/activate"
-print_command "hophop-server"
+print_command "hophop-rust-server"
 echo
