@@ -11,14 +11,14 @@ fi
 get_input() {
     local prompt="$1"
     local input
-    echo -n "$prompt"
-    read -t 30 input
+    echo -n "$prompt" > /dev/tty
+    read -t 30 input < /dev/tty
     echo "$input"
 }
 
 # Function to configure environment variables
 configure_env() {
-    echo "Would you like to review and modify the default server settings? (y/N)"
+    echo "Would you like to review and modify the default server settings? (y/N)" > /dev/tty
     response=$(get_input "> ")
     
     if [[ "$response" =~ ^[Yy] ]]; then
@@ -34,23 +34,23 @@ configure_env() {
             key=$(echo "$key" | xargs)
             value=$(echo "$value" | xargs)
             
-            echo
-            echo "Current $key is: $value"
-            echo "Would you like to change this value? (y/N)"
+            echo > /dev/tty
+            echo "Current $key is: $value" > /dev/tty
+            echo "Would you like to change this value? (y/N)" > /dev/tty
             change_response=$(get_input "> ")
             
             if [[ "$change_response" =~ ^[Yy] ]]; then
-                echo "Enter new value for $key:"
+                echo "Enter new value for $key:" > /dev/tty
                 new_value=$(get_input "> ")
                 echo "$key=$new_value" >> .env.local
-                echo "Updated $key to: $new_value"
+                echo "Updated $key to: $new_value" > /dev/tty
             fi
         done < .env
         
-        echo
-        echo "Configuration complete! Custom settings saved to .env.local"
+        echo > /dev/tty
+        echo "Configuration complete! Custom settings saved to .env.local" > /dev/tty
     else
-        echo "Skipping configuration. Default values will be used."
+        echo "Skipping configuration. Default values will be used." > /dev/tty
     fi
 }
 
