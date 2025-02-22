@@ -16,7 +16,7 @@ cd HopHopBuildServer
 # Function to configure environment variables
 configure_env() {
     echo "Would you like to review and modify the default server settings? (y/N)"
-    read -r response
+    read -r -p "> " response
     
     if [[ "$response" =~ ^[Yy] ]]; then
         # Create or clear .env.local
@@ -34,11 +34,11 @@ configure_env() {
             echo
             echo "Current $key is: $value"
             echo "Would you like to change this value? (y/N)"
-            read -r change_response
+            read -r -p "> " change_response
             
             if [[ "$change_response" =~ ^[Yy] ]]; then
                 echo "Enter new value for $key:"
-                read -r new_value
+                read -r -p "> " new_value
                 echo "$key=$new_value" >> .env.local
                 echo "Updated $key to: $new_value"
             fi
