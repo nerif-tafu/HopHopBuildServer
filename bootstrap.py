@@ -161,7 +161,28 @@ def start_rust_server():
         "+app.port", "1-"
     ]
 
-    subprocess.run(command)
+    # Create a screen-friendly server name (remove spaces and special characters)
+    SCREEN_NAME = SERVER_NAME.lower().replace(" ", "_").replace("|", "").replace("\"", "").strip()
+    
+    # Create the screen command
+    screen_command = [
+        "screen",
+        "-dmS",  # Start as a detached screen session
+        SCREEN_NAME,  # Name of the screen session
+        *command  # Expand the existing command list
+    ]
+    
+    print(f"Starting server in screen session: {SCREEN_NAME}")
+    try:
+        # Check if screen is installed
+        subprocess.run(["which", "screen"], check=True, capture_output=True)
+    except subprocess.CalledProcessError:
+        print("Screen is not installed. Installing screen...")
+        subprocess.run(["sudo", "apt-get", "install", "screen", "-y"])
+    
+    # Start the server in a screen session
+    subprocess.run(screen_command)
+    print(f"Server started in screen session. To attach to it, use: screen -r {SCREEN_NAME}")
 
 if __name__ == "__main__":
     try:
