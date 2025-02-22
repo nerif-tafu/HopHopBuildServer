@@ -41,11 +41,9 @@ def base_install():
         subprocess.run(["sudo", "dpkg", "--add-architecture", "i386"])
         subprocess.run(["sudo", "apt", "update"])
         
-        # Accept Steam EULA before installing
-        subprocess.run(["echo", "steam", "steam/question", "select", "I AGREE", "|", "sudo", "debconf-set-selections"], shell=True)
-        subprocess.run(["echo", "steam", "steam/license", "note", "''", "|", "sudo", "debconf-set-selections"], shell=True)
-        
-        subprocess.run(["sudo", "apt", "install", "steamcmd", "-y"])
+        # Accept Steam EULA and install steamcmd
+        subprocess.run(["echo", "steamcmd steam/question select I AGREE", "|", "sudo", "debconf-set-selections"], shell=True)
+        subprocess.run(["sudo", "DEBIAN_FRONTEND=noninteractive", "apt", "install", "steamcmd", "-y"], env={"DEBIAN_FRONTEND": "noninteractive"})
         print("SteamCMD installed successfully.")
     except Exception as e:
         print("Error occurred while installing SteamCMD:", e)
