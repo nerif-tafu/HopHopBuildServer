@@ -1,11 +1,12 @@
 # HopHop-Build-Server
 
-Run `sudo apt install lib32stdc++6 python3-pip python3.12-venv -y`
-
-Run `sudo python3 -m venv venv`
-
-Run `source venv/bin/activate`
-
-Run `pip3 install -r requirements.txt`
-
-Run `python3 bootstrap.py`
+Run this to bootstrap the rust server.
+```
+sudo apt install lib32stdc++6 python3-pip python3.12-venv git -y
+git clone https://github.com/nerif-tafu/HopHopBuildServer.git
+cd HopHopBuildServer
+python3 -m venv venv
+source venv/bin/activate
+pip3 install -r requirements.txt
+python3 bootstrap.py
+```

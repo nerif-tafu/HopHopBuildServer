@@ -4,10 +4,12 @@ import requests
 import json
 import tarfile
 import shutil
+import psutil
 from pysteamcmdwrapper import SteamCMD, SteamCMDException
 
 # Variable defs.
 RUST_ID = 258550
+REQUIRED_GB = 20
 
 PATH_ROOT = os.path.realpath(os.path.dirname(__file__))
 PATH_RUST_SERVER = os.path.join(PATH_ROOT,"rust_server")
@@ -20,10 +22,23 @@ os.makedirs(PATH_RUST_SERVER, exist_ok=True)
 os.makedirs(PATH_STEAM_CMD, exist_ok=True)
 os.makedirs(PATH_TMP, exist_ok=True)
 
+def check_disk_space():
+    """Check if there's enough disk space available (at least 20GB)."""
+    path = os.path.dirname(os.path.abspath(__file__))
+    available_bytes = psutil.disk_usage(path).free
+    available_gb = available_bytes / (1024**3)  # Convert to GB
+    
+    if available_gb < REQUIRED_GB:
+        raise Exception(f"Not enough disk space! Need at least {REQUIRED_GB}GB, but only have {available_gb:.2f}GB available.")
+    print(f"Disk space check passed: {available_gb:.2f}GB available")
+
 def base_install():
+    # First check disk space
+    check_disk_space()
+    
     try:
-        subprocess.run(["sudo", "add-apt-repository", "multiverse"])
-        subprocess.run(["sudo", "dpkg", "--add-architecture", "i386"])
+        subprocess.run(["sudo", "add-apt-repository", "multiverse", "-y"])
+        subprocess.run(["sudo", "dpkg", "--add-architecture", "i386", "-y"])
         subprocess.run(["sudo", "apt", "update"])
         subprocess.run(["sudo", "apt", "install", "steamcmd", "-y"])
         print("SteamCMD installed successfully.")
@@ -149,5 +164,9 @@ def start_rust_server():
     subprocess.run(command)
 
 if __name__ == "__main__":
-    base_install()
-    start_rust_server()
+    try:
+        base_install()
+        start_rust_server()
+    except Exception as e:
+        print(f"Error: {e}")
+        exit(1)
