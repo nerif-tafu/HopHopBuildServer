@@ -6,10 +6,33 @@ import tarfile
 import shutil
 import psutil
 from pysteamcmdwrapper import SteamCMD, SteamCMDException
+from dotenv import load_dotenv
+
+def load_env_files():
+    """Load environment variables from .env and .env.local files"""
+    # Load default .env file
+    load_dotenv('.env')
+    
+    # Load .env.local if it exists (overwriting any existing values)
+    if os.path.exists('.env.local'):
+        load_dotenv('.env.local', override=True)
 
 # Variable defs.
-RUST_ID = 258550
-REQUIRED_GB = 20
+def get_env_int(key, default=None):
+    """Get an environment variable as integer"""
+    value = os.getenv(key, default)
+    return int(value) if value is not None else None
+
+def get_env_str(key, default=None):
+    """Get an environment variable as string"""
+    return os.getenv(key, default)
+
+# Load environment variables
+load_env_files()
+
+# Get settings from environment
+RUST_ID = get_env_int('RUST_ID', 258550)
+REQUIRED_GB = get_env_int('REQUIRED_GB', 20)
 
 PATH_ROOT = os.path.realpath(os.path.dirname(__file__))
 PATH_RUST_SERVER = os.path.join(PATH_ROOT,"rust_server")
@@ -99,14 +122,14 @@ def base_install():
             print(f"Error occurred while copying {s} to {d}: {e}")
 
 def start_rust_server():
-    # User settings
-    SERVER_NAME = "HopHop Build server | Main"
-    SERVER_MAP_SIZE = 4800
-    SERVER_MAP_SEED = 12345
-    SERVER_PORT = 28015
-    SERVER_QUERY = 28016
-    SERVER_RCON_PORT = 28017
-    SERVER_RCON_PASS = "avoid-unelected-thee"
+    # Load settings from environment
+    SERVER_NAME = get_env_str('SERVER_NAME', 'HopHop Build server | Main')
+    SERVER_MAP_SIZE = get_env_int('SERVER_MAP_SIZE', 4800)
+    SERVER_MAP_SEED = get_env_int('SERVER_MAP_SEED', 12345)
+    SERVER_PORT = get_env_int('SERVER_PORT', 28015)
+    SERVER_QUERY = get_env_int('SERVER_QUERY', 28016)
+    SERVER_RCON_PORT = get_env_int('SERVER_RCON_PORT', 28017)
+    SERVER_RCON_PASS = get_env_str('SERVER_RCON_PASS', 'avoid-unelected-thee')
 
     # Define the list of users
     users = [

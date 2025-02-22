@@ -2,3 +2,4 @@ rust_server/*
 steam_cmd/*
 tmp/*
 .idea/*
+.env.local
