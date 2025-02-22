@@ -66,7 +66,13 @@ configure_env
 # Create virtual environment and install requirements
 python3 -m venv venv
 source venv/bin/activate
-pip3 install -r requirements.txt
 
-# Start the server
-python3 bootstrap.py
+pip install -e .
+
+echo "Installation complete! To start the flask server, run:
+source venv/bin/activate
+hophop-web
+
+To start the rust server, run:
+source venv/bin/activate
+hophop-server"
