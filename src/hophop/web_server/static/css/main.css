@@ -1,0 +1,99 @@
+html, body {
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+}
+
+body {
+    background-color: #1e1e1e;
+    color: #ffffff;
+    font-family: monospace;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+#root {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.app-container {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.header h1 {
+    margin: 0;
+    color: #4CAF50;
+}
+
+.status-item {
+    background: #2d2d2d;
+    padding: 8px;
+    border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.status-item .label {
+    color: #888;
+}
+
+.status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 8px;
+    margin: 8px 0;
+}
+
+.server-info {
+    background-color: #363636;
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+.server-info h3 {
+    margin-top: 0;
+    color: #4CAF50;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+}
+
+.toggle-btn {
+    font-size: 0.8em;
+    color: #888;
+}
+
+.raw-status {
+    margin-top: 8px;
+    padding: 8px;
+    background: #2d2d2d;
+    border-radius: 4px;
+    font-size: 0.9em;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.raw-status pre {
+    margin: 0;
+    white-space: pre-wrap;
+}
+
+#output {
+    background-color: #2d2d2d;
+    padding: 15px;
+    border-radius: 5px;
+    white-space: pre-wrap;
+    flex: 1;
+    overflow-y: auto;
+    font-size: 14px;
+    line-height: 1.4;
+    min-height: 100px;
+} 

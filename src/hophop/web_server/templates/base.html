@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{% block title %}Rust Server Console{% endblock %}</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        chardonnay: {
+                            '50': '#fef7ee',
+                            '100': '#fdeed7',
+                            '200': '#fad9ae',
+                            '300': '#f7c182',
+                            '400': '#f29845',
+                            '500': '#ee7b21',
+                            '600': '#df6117',
+                            '700': '#b94a15',
+                            '800': '#943a18',
+                            '900': '#773217',
+                            '950': '#40170a',
+                        },
+                        surface: {
+                            DEFAULT: '#fef7ee',    // chardonnay-50
+                            light: '#fdeed7',      // chardonnay-100
+                            lighter: '#fad9ae'     // chardonnay-200
+                        },
+                        text: {
+                            primary: '#ffffff',
+                            secondary: '#a3a3a3'  // neutral-400
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    {% block head %}{% endblock %}
+</head>
+<body class="bg-surface text-neutral-900 font-mono h-screen overflow-hidden box-border">
+    <div id="root" class="h-full"></div>
+    {% block content %}{% endblock %}
+    {% block scripts %}{% endblock %}
+</body>
+</html> 
