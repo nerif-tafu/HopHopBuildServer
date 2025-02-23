@@ -199,10 +199,12 @@ const ConfigPage = () => {
 
     if (config.loading) {
         return (
-            <div className="flex flex-col gap-4">
-                <h2 className="text-xl text-primary">Server Configuration</h2>
-                <div className="bg-surface rounded-lg p-4">
-                    <p className="text-neutral-400">Loading configuration...</p>
+            <div className="h-full flex flex-col">
+                <h2 className="text-xl text-primary mb-4">Server Configuration</h2>
+                <div className="flex-1 min-h-0">
+                    <div className="bg-surface rounded-lg p-4">
+                        <p className="text-neutral-400">Loading configuration...</p>
+                    </div>
                 </div>
             </div>
         );
@@ -210,18 +212,20 @@ const ConfigPage = () => {
 
     if (config.error) {
         return (
-            <div className="flex flex-col gap-4">
-                <h2 className="text-xl text-primary">Server Configuration</h2>
-                <div className="bg-surface rounded-lg p-4">
-                    <p className="text-status-error">{config.error}</p>
+            <div className="h-full flex flex-col">
+                <h2 className="text-xl text-primary mb-4">Server Configuration</h2>
+                <div className="flex-1 min-h-0">
+                    <div className="bg-surface rounded-lg p-4">
+                        <p className="text-status-error">{config.error}</p>
+                    </div>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="flex flex-col gap-4">
-            <div className="flex justify-between items-center">
+        <div className="h-full flex flex-col">
+            <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl text-primary">Server Configuration</h2>
                 <button 
                     onClick={handleSave}
@@ -236,7 +240,9 @@ const ConfigPage = () => {
                 </button>
             </div>
             
-            {renderConfigSection()}
+            <div className="flex-1 min-h-0">
+                {renderConfigSection()}
+            </div>
             
             {toast && (
                 <Toast

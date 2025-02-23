@@ -15,6 +15,8 @@ import json
 from functools import partial
 from pathlib import Path
 from dotenv import load_dotenv
+import psutil
+import signal
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'your-secret-key')
@@ -37,6 +39,12 @@ print(f"Project root directory: {ROOT_DIR.absolute()}")  # Add this to see the a
 # Load both .env files
 load_dotenv(ROOT_DIR / '.env')  # Load default values
 load_dotenv(ROOT_DIR / '.env.local', override=True)  # Override with local values
+
+# Add these at the top with other globals
+RUST_SERVER_SCRIPT = ROOT_DIR / 'hophop-rust-server'
+VENV_PATH = ROOT_DIR / 'venv'
+SERVER_PROCESS = None
+STARTUP_LOGS = []
 
 def is_port_in_use(port: int) -> bool:
     """Check if a port is already in use"""
@@ -341,6 +349,139 @@ def rcon_command():
 
     except Exception as e:
         print(f"Error in RCON command: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+def get_server_process():
+    """Get the current Rust server process if running"""
+    if SERVER_PROCESS and SERVER_PROCESS.poll() is None:
+        return SERVER_PROCESS
+    return None
+
+def is_server_running():
+    """Check if the server process is running"""
+    process = get_server_process()
+    return process is not None
+
+def start_server():
+    """Start the Rust server"""
+    global SERVER_PROCESS, STARTUP_LOGS
+    
+    if is_server_running():
+        return False, "Server is already running"
+    
+    STARTUP_LOGS = []
+    try:
+        # Unix-style command using bash
+        activate_cmd = str(VENV_PATH / 'bin' / 'activate')
+        cmd = ['/bin/bash', '-c', f'. "{activate_cmd}" && hophop-rust-server']
+        
+        # Start the server process
+        SERVER_PROCESS = subprocess.Popen(
+            cmd,
+            shell=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+            universal_newlines=True
+        )
+        
+        # Start a thread to monitor the output
+        def monitor_output():
+            while SERVER_PROCESS and SERVER_PROCESS.poll() is None:
+                line = SERVER_PROCESS.stdout.readline()
+                if line:
+                    STARTUP_LOGS.append(line.strip())
+                    socketio.emit('server_control', {
+                        'status': 'starting',
+                        'message': line.strip()
+                    })
+            
+            # Process ended
+            if SERVER_PROCESS and SERVER_PROCESS.returncode != 0:
+                socketio.emit('server_control', {
+                    'status': 'error',
+                    'message': f'Server crashed with code {SERVER_PROCESS.returncode}'
+                })
+        
+        threading.Thread(target=monitor_output, daemon=True).start()
+        return True, "Server starting"
+        
+    except Exception as e:
+        return False, f"Failed to start server: {str(e)}"
+
+def stop_server():
+    """Stop the Rust server"""
+    if not is_server_running():
+        return False, "Server is not running"
+    
+    try:
+        # Try graceful shutdown first
+        if rcon_client.connected:
+            rcon_client.send_command('quit')
+            time.sleep(2)  # Give it a moment to shut down
+        
+        # Force kill if still running
+        process = get_server_process()
+        if process and process.poll() is None:
+            if os.name == 'nt':
+                process.terminate()
+            else:
+                process.send_signal(signal.SIGTERM)
+            
+            # Wait for process to end
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                process.kill()  # Force kill if it doesn't respond
+        
+        return True, "Server stopped"
+    except Exception as e:
+        return False, f"Failed to stop server: {str(e)}"
+
+def restart_server():
+    """Restart the Rust server"""
+    stop_success, stop_msg = stop_server()
+    if not stop_success:
+        return False, f"Failed to stop server: {stop_msg}"
+    
+    time.sleep(2)  # Give it a moment before starting again
+    
+    start_success, start_msg = start_server()
+    if not start_success:
+        return False, f"Failed to start server: {start_msg}"
+    
+    return True, "Server restarting"
+
+@app.route('/api/server/control', methods=['POST'])
+def server_control():
+    """Handle server control commands"""
+    try:
+        data = request.get_json()
+        action = data.get('action')
+        
+        if action == 'start':
+            success, message = start_server()
+        elif action == 'stop':
+            success, message = stop_server()
+        elif action == 'restart':
+            success, message = restart_server()
+        elif action == 'status':
+            success = True
+            message = {
+                'running': is_server_running(),
+                'startup_logs': STARTUP_LOGS[-50:],  # Last 50 lines
+                'uptime': None  # TODO: Add uptime tracking
+            }
+        else:
+            return jsonify({'error': 'Invalid action'}), 400
+        
+        if success:
+            return jsonify({'message': message})
+        else:
+            return jsonify({'error': message}), 500
+            
+    except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 if __name__ == "__main__":

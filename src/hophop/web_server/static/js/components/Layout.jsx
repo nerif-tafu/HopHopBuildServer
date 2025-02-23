@@ -55,7 +55,7 @@ const Layout = ({ children, currentPage, onPageChange }) => {
             </nav>
 
             {/* Main Content */}
-            <main className="flex-1 p-10 flex flex-col overflow-hidden bg-surface">
+            <main className="flex-1 p-4 md:p-6 flex flex-col min-h-0 bg-surface">
                 {children}
             </main>
         </div>
