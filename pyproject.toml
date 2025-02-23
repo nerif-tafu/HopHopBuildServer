@@ -16,7 +16,8 @@ dependencies = [
     "simple-websocket",
     "talisker",
     "gunicorn",
-    "gevent"
+    "gevent",
+    "websocket-client"
 ]
 
 [project.urls]
