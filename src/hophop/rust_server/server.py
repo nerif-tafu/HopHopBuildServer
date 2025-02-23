@@ -60,6 +60,25 @@ def check_disk_space():
         raise Exception(f"Not enough disk space! Need at least {REQUIRED_GB}GB, but only have {available_gb:.2f}GB available.")
     print(f"Disk space check passed: {available_gb:.2f}GB available")
 
+def get_carbon_url(branch):
+    """Get the appropriate Carbon download URL based on the branch"""
+    base_url = "https://github.com/CarbonCommunity/Carbon/releases/download"
+    
+    if branch == 'staging':
+        return f"{base_url}/rustbeta_staging_build/Carbon.Linux.Debug.tar.gz"
+    elif branch == 'aux03':
+        return f"{base_url}/rustbeta_aux03_build/Carbon.Linux.Debug.tar.gz"
+    elif branch == 'aux02':
+        return f"{base_url}/rustbeta_aux02_build/Carbon.Linux.Debug.tar.gz"
+    elif branch == 'aux01':
+        return f"{base_url}/rustbeta_aux01_build/Carbon.Linux.Debug.tar.gz"
+    elif branch == 'edge':
+        return f"{base_url}/edge_build/Carbon.Linux.Debug.tar.gz"
+    elif branch == 'preview':
+        return f"{base_url}/preview_build/Carbon.Linux.Debug.tar.gz"
+    else:  # master/production
+        return f"{base_url}/production_build/Carbon.Linux.Release.tar.gz"
+
 def base_install():
     """Install and configure the Rust server"""
     # First check disk space
@@ -86,17 +105,20 @@ def base_install():
 
     s.app_update(RUST_ID,PATH_RUST_SERVER,validate=True)
 
-    # Install Carbon modding framework.
+    # Get the branch from environment
+    RUST_BRANCH = get_env_str('RUST_BRANCH', 'master')
+
+    # Install Carbon modding framework with appropriate version
     try:
-        download_url = "https://github.com/CarbonCommunity/Carbon/releases/download/production_build/Carbon.Linux.Release.tar.gz"
+        download_url = get_carbon_url(RUST_BRANCH)
         response = requests.get(download_url)
         response.raise_for_status()
 
         with open(os.path.join(PATH_TMP, "carbon.tar.gz"), "wb") as f:
             f.write(response.content)
 
-        # Extracting and installing Carbon.
-        print("Extracting and installing Carbon.")
+        # Extracting and installing Carbon
+        print(f"Extracting and installing Carbon ({RUST_BRANCH} branch)")
         with tarfile.open(os.path.join(PATH_TMP, "carbon.tar.gz"), "r:gz") as tar_ref:
             tar_ref.extractall(PATH_RUST_SERVER)
     except Exception as e:
@@ -130,8 +152,6 @@ def base_install():
 def start_rust_server():
     """Main entry point for the rust server"""
     try:
-        base_install()
-        
         # Load settings from environment
         SERVER_NAME = get_env_str('SERVER_NAME', 'HopHop Build server | Main')
         SERVER_MAP_SIZE = get_env_int('SERVER_MAP_SIZE', 4800)
@@ -140,6 +160,31 @@ def start_rust_server():
         SERVER_QUERY = get_env_int('SERVER_QUERY', 28016)
         SERVER_RCON_PORT = get_env_int('SERVER_RCON_PORT', 28017)
         SERVER_RCON_PASS = get_env_str('SERVER_RCON_PASS', 'avoid-unelected-thee')
+        SERVER_MAX_PLAYERS = get_env_int('SERVER_MAX_PLAYERS', 8)
+        RUST_BRANCH = get_env_str('RUST_BRANCH', 'master')
+
+        base_install()
+        
+        # Update/Install Rust server with appropriate branch
+        s = SteamCMD("steam_cmd")
+        try:
+            s.install()
+        except SteamCMDException:
+            print("Already installed, try to use the --force option to force installation")
+
+        # Set beta branch if not master
+        beta_branch = None
+        if RUST_BRANCH in ['staging', 'aux01', 'aux02', 'aux03', 'edge', 'preview']:
+            beta_branch = RUST_BRANCH
+        
+        # Update app with specified branch
+        print(f"Installing Rust server ({RUST_BRANCH} branch)")
+        s.app_update(
+            RUST_ID,
+            PATH_RUST_SERVER,
+            validate=True,
+            beta=beta_branch
+        )
 
         # Define the list of users
         users = [
@@ -192,7 +237,7 @@ def start_rust_server():
             "+server.worldsize", str(SERVER_MAP_SIZE),
             "+rcon.password", SERVER_RCON_PASS,
             "+rcon.web", "true",
-            "+server.maxplayers", "8",
+            "+server.maxplayers", str(SERVER_MAX_PLAYERS),
             "+app.port", "1-"
         ]
 

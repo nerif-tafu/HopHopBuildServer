@@ -7,9 +7,8 @@ const App = () => {
         entities: 'Unknown',
         raw: ''
     });
+    const [connectionState, setConnectionState] = React.useState('disconnected');
     const [consoleOutput, setConsoleOutput] = React.useState('');
-    const [connectionStatus, setConnectionStatus] = React.useState('Connecting to server...');
-    const [connected, setConnected] = React.useState(false);
     const [currentPage, setCurrentPage] = React.useState('status');
 
     React.useEffect(() => {
@@ -19,18 +18,17 @@ const App = () => {
         });
 
         socket.on('connect', () => {
-            setConnectionStatus('Connected to WS - Looking for server output');
-            setConnected(true);
+            setConnectionState('connected');
         });
 
         socket.on('disconnect', () => {
-            setConnectionStatus('Disconnected from server');
-            setConnected(false);
+            setConnectionState('disconnected');
         });
 
         socket.on('server_status', (msg) => {
             if (msg && msg.data) {
                 setServerStatus(msg.data);
+                setConnectionState(msg.data.status); // 'online', 'offline', or 'unknown'
             }
         });
 
@@ -45,6 +43,16 @@ const App = () => {
         return () => socket.disconnect();
     }, []);
 
+    const getStatusMessage = () => {
+        switch (connectionState) {
+            case 'connected': return 'Connected to WebSocket';
+            case 'disconnected': return 'Disconnected from WebSocket';
+            case 'online': return 'Console feed is LIVE';
+            case 'offline': return 'Server Offline';
+            default: return 'Unknown Status';
+        }
+    };
+
     const renderPage = () => {
         switch (currentPage) {
             case 'status':
@@ -52,15 +60,15 @@ const App = () => {
                     <React.Fragment>
                         <ServerStatus status={serverStatus} />
                         <ConsoleOutput output={consoleOutput} />
-                        <ConnectionStatus status={connectionStatus} />
+                        <ConnectionStatus state={connectionState} message={getStatusMessage()} />
                     </React.Fragment>
                 );
             case 'config':
-                return <ConfigPage />;
+                return <window.ConfigPage />;
             case 'control':
-                return <ControlPage />;
+                return <window.ControlPage />;
             case 'plugins':
-                return <PluginsPage />;
+                return <window.PluginsPage />;
             default:
                 return <div>Page not found</div>;
         }

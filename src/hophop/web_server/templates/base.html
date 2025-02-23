@@ -7,6 +7,7 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/yup/umd/yup.production.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script>
         tailwind.config = {
@@ -31,9 +32,10 @@
                             light: '#fdeed7',      // chardonnay-100
                             lighter: '#fad9ae'     // chardonnay-200
                         },
-                        text: {
-                            primary: '#ffffff',
-                            secondary: '#a3a3a3'  // neutral-400
+                        status: {
+                            success: '#22c55e',    // green-500
+                            error: '#ef4444',      // red-500
+                            unknown: '#a3a3a3'     // neutral-400
                         }
                     }
                 }

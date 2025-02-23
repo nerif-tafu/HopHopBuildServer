@@ -2,7 +2,7 @@
 from gevent import monkey
 monkey.patch_all()
 
-from flask import Flask, render_template
+from flask import Flask, render_template, jsonify, request
 from flask_socketio import SocketIO, emit
 import subprocess
 import threading
@@ -13,6 +13,8 @@ from typing import Optional
 from .rcon_client import RustRCON
 import json
 from functools import partial
+from pathlib import Path
+from dotenv import load_dotenv
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'your-secret-key')
@@ -25,6 +27,16 @@ RCON_PASSWORD = os.getenv('SERVER_RCON_PASS', 'avoid-unelected-thee')  # Use SER
 
 # Add this after app initialization
 rcon_client = RustRCON(RCON_HOST, RCON_PORT, RCON_PASSWORD)
+
+# Get the project root directory - adjust to look in the main repo directory
+ROOT_DIR = Path(__file__).parent.parent.parent.parent  # Added one more .parent to go up one more level
+
+# Debug the actual path
+print(f"Project root directory: {ROOT_DIR.absolute()}")  # Add this to see the actual path
+
+# Load both .env files
+load_dotenv(ROOT_DIR / '.env')  # Load default values
+load_dotenv(ROOT_DIR / '.env.local', override=True)  # Override with local values
 
 def is_port_in_use(port: int) -> bool:
     """Check if a port is already in use"""
@@ -226,6 +238,110 @@ def run_server(bind: Optional[str] = "0.0.0.0:5000",
     
     # Run with Flask-SocketIO's server instead of Gunicorn
     socketio.run(app, host=host, port=port, debug=True, allow_unsafe_werkzeug=True)
+
+@app.route('/api/config', methods=['GET'])
+def get_config():
+    print("Config endpoint called")
+    
+    # Read both .env files
+    default_config = {}
+    env_path = ROOT_DIR / '.env'
+    print(f"Looking for .env at: {env_path.absolute()}")  # Use absolute path in log
+    if env_path.exists():
+        print(".env file found")
+        with open(env_path, 'r') as f:
+            for line in f:
+                if line.strip() and not line.startswith('#'):
+                    try:
+                        key, value = line.strip().split('=', 1)
+                        default_config[key.strip()] = value.strip()  # Added strip() to clean up values
+                    except ValueError:
+                        continue
+
+    current_config = {}
+    env_local_path = ROOT_DIR / '.env.local'
+    print(f"Looking for .env.local at: {env_local_path.absolute()}")  # Use absolute path in log
+    if env_local_path.exists():
+        print(".env.local file found")
+        with open(env_local_path, 'r') as f:
+            for line in f:
+                if line.strip() and not line.startswith('#'):
+                    try:
+                        key, value = line.strip().split('=', 1)
+                        current_config[key.strip()] = value.strip()  # Added strip() to clean up values
+                    except ValueError:
+                        continue
+    else:
+        current_config = default_config.copy()
+
+    print(f"Default config: {default_config}")
+    print(f"Current config: {current_config}")
+    
+    response = {
+        'current': current_config,
+        'defaults': default_config
+    }
+    print(f"Sending response: {response}")
+    return jsonify(response)
+
+@app.route('/api/config', methods=['POST'])
+def update_config():
+    try:
+        new_config = request.json
+        env_local_path = ROOT_DIR / '.env.local'
+        
+        # Write to .env.local
+        with open(env_local_path, 'w') as f:
+            for key, value in new_config.items():
+                f.write(f"{key}={value}\n")
+        
+        # Reload environment variables
+        load_dotenv(ROOT_DIR / '.env')  # Load default values
+        load_dotenv(ROOT_DIR / '.env.local', override=True)  # Override with local values
+        
+        return jsonify({'status': 'success', 'message': 'Configuration updated successfully'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/rcon', methods=['POST'])
+def rcon_command():
+    try:
+        data = request.get_json()
+        command = data.get('command')
+        print(f"\nRCON command received: '{command}'")
+
+        if not command:
+            print("No command provided")
+            return jsonify({'error': 'No command provided'}), 400
+
+        if not rcon_client.connected:
+            print("RCON not connected")
+            return jsonify({'error': 'RCON not connected'}), 503
+
+        # Create an event to wait for the response
+        response_event = threading.Event()
+        response_data = {'response': None}
+
+        def handle_response(response):
+            print(f"Raw RCON response: {response}")
+            response_data['response'] = response
+            response_event.set()
+
+        # Send command and wait for response
+        print("Sending command to RCON client...")
+        rcon_client.send_command(command, handle_response)
+        
+        # Wait for response with timeout
+        if response_event.wait(timeout=5.0):
+            print(f"Final response to send: {response_data['response']}")
+            return jsonify({'response': response_data['response']})
+        else:
+            print("Command timed out")
+            return jsonify({'error': 'Command timed out'}), 504
+
+    except Exception as e:
+        print(f"Error in RCON command: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == "__main__":
     run_server() 
