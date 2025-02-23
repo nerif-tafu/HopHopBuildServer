@@ -4,82 +4,102 @@
     <title>Rust Server Output</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+
         body {
             background-color: #1e1e1e;
             color: #ffffff;
             font-family: monospace;
-            margin: 0;
             padding: 20px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
         }
-        #output {
-            background-color: #2d2d2d;
-            padding: 20px;
-            border-radius: 5px;
-            white-space: pre-wrap;
-            height: 80vh;
-            overflow-y: auto;
-            font-size: 14px;
-            line-height: 1.4;
-        }
+
         .header {
-            margin-bottom: 20px;
+            flex-shrink: 0;
+            margin-bottom: 10px;
         }
+
         .status {
+            flex-shrink: 0;
             color: #888;
             font-style: italic;
+            margin-bottom: 10px;
         }
+
+        #server-status {
+            flex-shrink: 0;
+            margin-bottom: 10px;
+        }
+
         .server-info {
             background-color: #363636;
             padding: 15px;
             border-radius: 5px;
-            margin-top: 20px;
+        }
+
+        #output {
+            background-color: #2d2d2d;
+            padding: 15px;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            flex: 1;
+            overflow-y: auto;
+            font-size: 14px;
+            line-height: 1.4;
+            margin-top: 10px;
+            min-height: 100px; /* Ensure minimum height */
+        }
+
+        /* Adjust grid for better space usage */
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 8px;
+            margin: 8px 0;
+        }
+        
+        .status-item {
+            background: #2d2d2d;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        
+        /* Make raw status more compact */
+        .raw-status {
+            margin-top: 8px;
+            padding: 8px;
+            background: #2d2d2d;
+            border-radius: 4px;
+            font-size: 0.9em;
+            display: none;
+            max-height: 200px;
+            overflow-y: auto;
         }
         
         .server-info h3 {
             margin-top: 0;
             color: #4CAF50;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+        
+        .server-info h3 .toggle-btn {
+            font-size: 0.8em;
+            color: #888;
+            user-select: none;
         }
         
         .server-info pre {
             margin: 0;
             white-space: pre-wrap;
-        }
-        .status-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 10px;
-            margin: 10px 0;
-        }
-        
-        .status-item {
-            background: #2d2d2d;
-            padding: 10px;
-            border-radius: 4px;
-        }
-        
-        .status-item .label {
-            color: #888;
-            display: block;
-            font-size: 0.9em;
-        }
-        
-        .status-item .value {
-            font-size: 1.2em;
-            font-weight: bold;
-        }
-        
-        .raw-status {
-            margin-top: 10px;
-            padding: 10px;
-            background: #2d2d2d;
-            border-radius: 4px;
-            font-size: 0.9em;
-        }
-        
-        .raw-status pre {
-            margin: 0;
-            white-space: pre-wrap;
-            color: #888;
         }
     </style>
 </head>
@@ -153,7 +173,10 @@
             
             statusDiv.innerHTML = `
                 <div class="server-info">
-                    <h3>Server Status</h3>
+                    <h3 onclick="toggleRawStatus(this)">
+                        Server Status
+                        <span class="toggle-btn">▼ Show Raw</span>
+                    </h3>
                     <div class="status-grid">
                         <div class="status-item">
                             <span class="label">Status:</span>
@@ -178,6 +201,19 @@
                 </div>
             `;
         });
+
+        // Add toggle function
+        function toggleRawStatus(element) {
+            const rawStatus = element.parentElement.querySelector('.raw-status');
+            const toggleBtn = element.querySelector('.toggle-btn');
+            if (rawStatus.classList.contains('show')) {
+                rawStatus.classList.remove('show');
+                toggleBtn.textContent = '▼ Show Raw';
+            } else {
+                rawStatus.classList.add('show');
+                toggleBtn.textContent = '▲ Hide Raw';
+            }
+        }
 
         // Request initial status
         socket.emit('request_status');

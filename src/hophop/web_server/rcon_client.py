@@ -53,7 +53,6 @@ class RustRCON:
                     time.sleep(0.5)  # Increased sleep time
                 
                 if self.connected:
-                    print("Successfully connected to RCON")
                     self.reconnect_delay = 30  # Reset delay on successful connection
                     break
                 
@@ -68,7 +67,6 @@ class RustRCON:
     
     def _on_open(self, ws):
         """Called when connection is established"""
-        print("RCON WebSocket connected")
         self.connected = True
         if self.on_state_change:
             self.on_state_change()
@@ -110,7 +108,6 @@ class RustRCON:
         
         # Only notify of state change if we were previously connected
         if was_connected:
-            print(f"RCON WebSocket connection closed (code: {close_status_code}, msg: {close_msg})")
             if self.on_state_change:
                 self.on_state_change()
         
