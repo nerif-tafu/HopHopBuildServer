@@ -9,6 +9,7 @@ const PluginsPage = () => {
     const fileInputRef = React.useRef();
     const containerRef = React.useRef(null);
     const [view, setView] = React.useState(null);
+    const [selectedFile, setSelectedFile] = React.useState(null);
 
     React.useEffect(() => {
         fetchPlugins();
@@ -64,16 +65,21 @@ const PluginsPage = () => {
         }
     };
 
-    const handleUpload = async (event) => {
-        event.preventDefault();
-        const file = fileInputRef.current.files[0];
-        if (!file) {
-            showToast('Please select a file', 'error');
-            return;
+    const handleFileChange = (event) => {
+        const file = event.target.files[0];
+        if (file && file.name.endsWith('.cs')) {
+            setSelectedFile(file);
+        } else {
+            showToast('Please select a valid C# (.cs) file', 'error');
+            event.target.value = null;
         }
+    };
+
+    const handleUpload = async () => {
+        if (!selectedFile) return;
 
         const formData = new FormData();
-        formData.append('file', file);
+        formData.append('plugin', selectedFile);
 
         setIsLoading(true);
         try {
@@ -83,13 +89,14 @@ const PluginsPage = () => {
             });
             const data = await response.json();
             
-            if (data.error) {
-                showToast(data.error, 'error');
-            } else {
-                showToast('Plugin uploaded successfully', 'success');
-                setPlugins([...plugins, data.plugin]);
-                fileInputRef.current.value = '';
+            if (data.error) throw new Error(data.error);
+            
+            showToast('Plugin uploaded successfully', 'success');
+            setSelectedFile(null);
+            if (fileInputRef.current) {
+                fileInputRef.current.value = null;
             }
+            await fetchPlugins();
         } catch (error) {
             showToast(error.message, 'error');
         } finally {
@@ -332,117 +339,116 @@ const PluginsPage = () => {
 
     return (
         <div className="h-full flex flex-col">
-            <h2 className="text-xl text-primary mb-4">Server Plugins</h2>
+            <div className="mb-6">
+                <h2 className="text-xl text-primary">Server Plugins</h2>
+            </div>
             <div className="flex-1 min-h-0">
-                <div className="bg-surface rounded-lg p-4">
+                <div className="bg-surface-light rounded-lg p-4 h-full flex flex-col">
                     {/* Upload section */}
-                    <div className="mb-6 p-4 border-2 border-dashed border-surface-lighter rounded-lg bg-surface-light">
-                        <h3 className="text-lg mb-2 text-primary">Install New Plugin</h3>
-                        <form onSubmit={handleUpload} className="flex gap-2">
-                            <div className="flex-1 relative">
-                                <input
-                                    type="file"
-                                    accept=".cs"
-                                    ref={fileInputRef}
-                                    className="block w-full text-sm text-neutral-900
-                                        file:mr-4 file:py-2 file:px-4
-                                        file:rounded file:border-0
-                                        file:text-sm file:font-semibold
-                                        file:bg-chardonnay-500 file:text-white
-                                        hover:file:bg-chardonnay-600
-                                        file:cursor-pointer file:transition-colors
-                                        disabled:opacity-50 disabled:cursor-not-allowed"
-                                    disabled={isLoading}
-                                />
-                            </div>
+                    <div className="mb-4 p-4 bg-surface rounded-lg border border-surface-lighter">
+                        <h3 className="text-lg text-primary mb-2">Install New Plugin</h3>
+                        <div className="flex gap-2">
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handleFileChange}
+                                className="hidden"
+                                accept=".cs"
+                            />
                             <button
-                                type="submit"
-                                disabled={isLoading}
-                                className="px-4 py-2 rounded bg-chardonnay-500 text-white 
-                                    hover:bg-chardonnay-600 transition-colors 
-                                    disabled:opacity-50 disabled:cursor-not-allowed"
+                                onClick={() => fileInputRef.current.click()}
+                                className="px-4 py-2 bg-neutral-700 hover:bg-neutral-600 text-white rounded 
+                                    transition-colors flex items-center gap-2"
                             >
-                                {isLoading ? (
-                                    <span className="flex items-center">
-                                        <i className="fas fa-spinner fa-spin mr-2"></i>
-                                        Uploading...
-                                    </span>
-                                ) : (
-                                    <span className="flex items-center">
-                                        <i className="fas fa-upload mr-2"></i>
-                                        Upload
-                                    </span>
-                                )}
+                                <i className="fas fa-file-upload"></i>
+                                Choose File
                             </button>
-                        </form>
+                            <span className="flex-1 px-2 py-2 text-sm text-neutral-400">
+                                {selectedFile ? selectedFile.name : 'No file chosen'}
+                            </span>
+                            <button
+                                onClick={handleUpload}
+                                disabled={!selectedFile || isLoading}
+                                className="px-4 py-2 bg-chardonnay-500 text-white rounded hover:bg-chardonnay-600 
+                                    disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                                Upload
+                            </button>
+                        </div>
                     </div>
 
                     {/* Plugins list */}
-                    <div className="space-y-2">
-                        {plugins.map(plugin => (
-                            <div key={plugin.name} 
-                                className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-surface-light rounded 
-                                    hover:bg-surface-lighter transition-colors gap-3"
-                            >
-                                {/* Plugin name */}
-                                <div className="font-mono text-sm">
-                                    {plugin.name}
-                                </div>
+                    <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin scrollbar-thumb-neutral-600 
+                        scrollbar-track-neutral-800 hover:scrollbar-thumb-neutral-500">
+                        <div className="space-y-3">
+                            {plugins.map(plugin => (
+                                <div key={plugin.name} 
+                                    className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-surface rounded-lg 
+                                        border border-surface-lighter hover:border-surface-lighter/80 transition-all gap-3"
+                                >
+                                    {/* Plugin name */}
+                                    <div className="font-mono text-sm flex items-center gap-2">
+                                        <span className={`w-2 h-2 rounded-full ${
+                                            plugin.active ? 'bg-green-500' : 'bg-red-500'
+                                        }`}></span>
+                                        {plugin.name}
+                                    </div>
 
-                                {/* Actions */}
-                                <div className="flex flex-wrap gap-2">
-                                    <button
-                                        onClick={() => fetchPluginContent(plugin, 'code')}
-                                        className="flex-1 sm:flex-none px-3 py-1.5 text-sm rounded bg-surface hover:bg-neutral-200 
-                                            transition-colors flex items-center justify-center gap-1.5"
-                                    >
-                                        <i className="fas fa-code"></i>
-                                        <span className="sm:hidden md:inline">Code</span>
-                                    </button>
-                                    
-                                    {plugin.hasConfig && (
+                                    {/* Actions */}
+                                    <div className="flex flex-wrap gap-2">
                                         <button
-                                            onClick={() => fetchPluginContent(plugin, 'config')}
-                                            className="flex-1 sm:flex-none px-3 py-1.5 text-sm rounded bg-surface hover:bg-neutral-200 
-                                                transition-colors flex items-center justify-center gap-1.5"
+                                            onClick={() => fetchPluginContent(plugin, 'code')}
+                                            className="flex-1 sm:flex-none px-3 py-1.5 text-sm rounded bg-neutral-700 hover:bg-neutral-600 
+                                                text-white transition-colors flex items-center justify-center gap-1.5"
                                         >
-                                            <i className="fas fa-cog"></i>
-                                            <span className="sm:hidden md:inline">Config</span>
+                                            <i className="fas fa-code"></i>
+                                            <span className="sm:hidden md:inline">Code</span>
                                         </button>
-                                    )}
-                                    
-                                    <button
-                                        onClick={() => togglePlugin(plugin)}
-                                        disabled={isLoading}
-                                        className={`flex-1 sm:flex-none px-3 py-1.5 text-sm rounded text-white disabled:opacity-50 
-                                            transition-colors flex items-center justify-center gap-1.5
-                                            ${plugin.active 
-                                                ? 'bg-green-500 hover:bg-green-600' 
-                                                : 'bg-red-500 hover:bg-red-600'
-                                            }`}
-                                    >
-                                        <i className={`fas ${plugin.active ? 'fa-toggle-on' : 'fa-toggle-off'}`}></i>
-                                        <span className="sm:hidden md:inline">{plugin.active ? 'Enabled' : 'Disabled'}</span>
-                                    </button>
+                                        
+                                        {plugin.hasConfig && (
+                                            <button
+                                                onClick={() => fetchPluginContent(plugin, 'config')}
+                                                className="flex-1 sm:flex-none px-3 py-1.5 text-sm rounded bg-neutral-700 hover:bg-neutral-600 
+                                                    text-white transition-colors flex items-center justify-center gap-1.5"
+                                            >
+                                                <i className="fas fa-cog"></i>
+                                                <span className="sm:hidden md:inline">Config</span>
+                                            </button>
+                                        )}
+                                        
+                                        <button
+                                            onClick={() => togglePlugin(plugin)}
+                                            disabled={isLoading}
+                                            className={`flex-1 sm:flex-none px-3 py-1.5 text-sm rounded text-white disabled:opacity-50 
+                                                transition-colors flex items-center justify-center gap-1.5
+                                                ${plugin.active 
+                                                    ? 'bg-green-500 hover:bg-green-600' 
+                                                    : 'bg-red-500 hover:bg-red-600'
+                                                }`}
+                                        >
+                                            <i className={`fas ${plugin.active ? 'fa-toggle-on' : 'fa-toggle-off'}`}></i>
+                                            <span className="sm:hidden md:inline">{plugin.active ? 'Enabled' : 'Disabled'}</span>
+                                        </button>
 
-                                    <button
-                                        onClick={() => deletePlugin(plugin)}
-                                        className="flex-1 sm:flex-none px-3 py-1.5 text-sm rounded bg-red-500 hover:bg-red-600 
-                                            text-white transition-colors flex items-center justify-center gap-1.5"
-                                    >
-                                        <i className="fas fa-trash"></i>
-                                        <span className="sm:hidden md:inline">Delete</span>
-                                    </button>
+                                        <button
+                                            onClick={() => deletePlugin(plugin)}
+                                            className="flex-1 sm:flex-none px-3 py-1.5 text-sm rounded bg-red-500 hover:bg-red-600 
+                                                text-white transition-colors flex items-center justify-center gap-1.5"
+                                        >
+                                            <i className="fas fa-trash"></i>
+                                            <span className="sm:hidden md:inline">Delete</span>
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
-                        {plugins.length === 0 && (
-                            <div className="text-center text-neutral-500 py-8">
-                                <i className="fas fa-puzzle-piece text-4xl mb-2"></i>
-                                <p>No plugins available</p>
-                                <p className="text-sm mt-1">Upload a .cs file to get started</p>
-                            </div>
-                        )}
+                            ))}
+                            {plugins.length === 0 && (
+                                <div className="text-center text-neutral-500 py-8 bg-surface rounded-lg border border-surface-lighter">
+                                    <i className="fas fa-puzzle-piece text-4xl mb-2"></i>
+                                    <p>No plugins available</p>
+                                    <p className="text-sm mt-1">Upload a .cs file to get started</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

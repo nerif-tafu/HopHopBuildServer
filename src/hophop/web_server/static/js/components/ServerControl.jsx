@@ -90,11 +90,10 @@ const ServerControl = () => {
     };
 
     return (
-        <div className="bg-surface p-4 rounded-lg flex flex-col h-full">
-            <div className="flex items-center justify-between mb-4">
+        <div className="bg-surface-light rounded-lg flex flex-col h-full">
+            <div className="flex items-center justify-between p-4 border-b border-surface-lighter">
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
-                        <h2 className="text-lg font-semibold">Server Control</h2>
                         <span className={`
                             ${status === 'running' ? 'text-green-600' : ''}
                             ${status === 'stopped' ? 'text-red-600' : ''}
@@ -146,14 +145,16 @@ const ServerControl = () => {
             </div>
 
             {/* Service logs */}
-            <div className="flex-1 min-h-0 bg-neutral-800 rounded">
-                <div 
-                    ref={logsRef}
-                    className="h-full p-2 overflow-y-auto font-mono text-sm"
-                >
-                    <pre className="text-white whitespace-pre-wrap break-words overflow-x-hidden w-full">
-                        {logs.join('\n')}
-                    </pre>
+            <div className="flex-1 min-h-0 p-4">
+                <div className="bg-neutral-800 rounded-lg h-full">
+                    <div 
+                        ref={logsRef}
+                        className="h-full p-2 overflow-y-auto font-mono text-sm"
+                    >
+                        <pre className="text-white whitespace-pre-wrap break-words overflow-x-hidden w-full">
+                            {logs.join('\n')}
+                        </pre>
+                    </div>
                 </div>
             </div>
 

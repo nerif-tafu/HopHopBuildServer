@@ -126,26 +126,22 @@ const ConfigPage = () => {
     const renderConfigSection = () => {
         if (config.loading) {
             return (
-                <div className="bg-surface rounded-lg h-full">
-                    <div className="p-4 text-center text-neutral-500">
-                        Loading configuration...
-                    </div>
+                <div className="p-4 text-center text-neutral-500">
+                    Loading configuration...
                 </div>
             );
         }
 
         if (config.error) {
             return (
-                <div className="bg-surface rounded-lg h-full">
-                    <div className="p-4 text-status-error">
-                        {config.error}
-                    </div>
+                <div className="p-4 text-status-error">
+                    {config.error}
                 </div>
             );
         }
 
         return (
-            <div className="bg-surface rounded-lg h-full flex flex-col">
+            <div className="h-full flex flex-col">
                 <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-neutral-600 
                     scrollbar-track-neutral-800 hover:scrollbar-thumb-neutral-500">
                     {Object.keys(config.defaults).map(key => renderConfigField(key))}
@@ -237,7 +233,9 @@ const ConfigPage = () => {
     if (config.loading) {
         return (
             <div className="h-full flex flex-col">
-                <h2 className="text-xl text-primary mb-4">Server Configuration</h2>
+                <div className="mb-6">
+                    <h2 className="text-xl text-primary">Server Configuration</h2>
+                </div>
                 <div className="flex-1 min-h-0">
                     <div className="bg-surface rounded-lg p-4">
                         <p className="text-neutral-400">Loading configuration...</p>
@@ -250,7 +248,9 @@ const ConfigPage = () => {
     if (config.error) {
         return (
             <div className="h-full flex flex-col">
-                <h2 className="text-xl text-primary mb-4">Server Configuration</h2>
+                <div className="mb-6">
+                    <h2 className="text-xl text-primary">Server Configuration</h2>
+                </div>
                 <div className="flex-1 min-h-0">
                     <div className="bg-surface rounded-lg p-4">
                         <p className="text-status-error">{config.error}</p>
@@ -262,47 +262,12 @@ const ConfigPage = () => {
 
     return (
         <div className="h-full flex flex-col">
-            {/* Header - hide save button on mobile */}
-            <div className="hidden sm:flex sm:flex-row justify-between items-center gap-4 mb-4">
-                <h2 className="text-xl text-primary">Server Configuration</h2>
-                <button 
-                    onClick={handleSave}
-                    disabled={!hasChanges}
-                    className={`px-4 py-2 rounded transition-colors ${
-                        hasChanges 
-                            ? 'bg-chardonnay-600 hover:bg-chardonnay-700 text-white cursor-pointer' 
-                            : 'bg-neutral-300 text-neutral-500 cursor-not-allowed'
-                    }`}
-                >
-                    Save Changes
-                </button>
-            </div>
-
-            {/* Mobile header - without save button */}
-            <div className="sm:hidden mb-4">
+            <div className="mb-6">
                 <h2 className="text-xl text-primary">Server Configuration</h2>
             </div>
-            
-            {/* Main content */}
-            <div className="flex-1 min-h-0 flex flex-col">
-                {/* Config section */}
-                <div className="flex-1 min-h-0">
+            <div className="flex-1 min-h-0">
+                <div className="bg-surface-light rounded-lg h-full">
                     {renderConfigSection()}
-                </div>
-
-                {/* Mobile save button - fixed at bottom */}
-                <div className="sm:hidden mt-4">
-                    <button 
-                        onClick={handleSave}
-                        disabled={!hasChanges}
-                        className={`w-full px-4 py-3 rounded transition-colors ${
-                            hasChanges 
-                                ? 'bg-chardonnay-600 hover:bg-chardonnay-700 text-white cursor-pointer' 
-                                : 'bg-neutral-300 text-neutral-500 cursor-not-allowed'
-                        }`}
-                    >
-                        Save Changes
-                    </button>
                 </div>
             </div>
             
