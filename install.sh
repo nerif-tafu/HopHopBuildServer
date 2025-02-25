@@ -41,6 +41,53 @@ print_command() {
     echo -e "    ${COLOR_BLUE}${BOLD}$1${COLOR_RESET}"
 }
 
+# Function to install systemd service
+install_systemd_service() {
+    print_header "Installing Systemd Service"
+    
+    # Copy and configure service file
+    print_step "Installing service file..."
+    SERVICE_PATH="/etc/systemd/system/hophop-rust-server.service"
+    INSTALL_PATH="$HOME/HopHopBuildServer"
+    
+    # Create temporary service file with replacements
+    sed -e "s|%USER%|$USER|g" \
+        -e "s|%INSTALL_PATH%|$INSTALL_PATH|g" \
+        src/hophop/rust_server/systemd/hophop-rust-server.service | sudo tee "$SERVICE_PATH" > /dev/null
+    
+    # Add sudoers entry for service control
+    print_step "Setting up service permissions..."
+    SUDOERS_CONTENT="$USER ALL=(ALL) NOPASSWD: /bin/systemctl start hophop-rust-server, /bin/systemctl stop hophop-rust-server, /bin/systemctl restart hophop-rust-server, /bin/systemctl status hophop-rust-server, /bin/systemctl enable hophop-rust-server, /bin/systemctl disable hophop-rust-server, /bin/journalctl -u hophop-rust-server"
+    echo "$SUDOERS_CONTENT" | sudo tee "/etc/sudoers.d/hophop-rust-server"
+    sudo chmod 440 "/etc/sudoers.d/hophop-rust-server"
+    
+    # Reload systemd daemon
+    print_step "Reloading systemd daemon..."
+    sudo systemctl daemon-reload
+    
+    # Enable the service
+    print_step "Enabling service..."
+    sudo systemctl enable hophop-rust-server
+    
+    print_success "Systemd service installed successfully"
+}
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --service-only)
+            format_setup
+            install_systemd_service
+            exit 0
+            ;;
+        *)
+            print_warning "Unknown option: $1"
+            exit 1
+            ;;
+    esac
+    shift
+done
+
 # Check if HopHopBuildServer already exists
 if [ -d "$HOME/HopHopBuildServer" ]; then
     print_warning "HopHopBuildServer folder already exists in $HOME"
@@ -110,17 +157,21 @@ pip install -e .
 # Add format setup at the start of the actual installation
 format_setup
 
+# Install systemd service at the end of installation
+install_systemd_service
+
 # Update the final installation message
 print_header "Installation Complete!"
-echo -e "${BOLD}To start the flask server, run:${COLOR_RESET}"
+echo -e "${BOLD}To start the web server, run:${COLOR_RESET}"
 echo
 print_command "cd $HOME/HopHopBuildServer"
 print_command "source venv/bin/activate"
 print_command "hophop-web-server"
 echo
-echo -e "${BOLD}To start the rust server, run:${COLOR_RESET}"
+echo -e "${BOLD}To manage the Rust server, use:${COLOR_RESET}"
 echo
-print_command "cd $HOME/HopHopBuildServer"
-print_command "source venv/bin/activate"
-print_command "hophop-rust-server"
+print_command "sudo systemctl start hophop-rust-server"
+print_command "sudo systemctl stop hophop-rust-server"
+print_command "sudo systemctl restart hophop-rust-server"
+print_command "sudo systemctl status hophop-rust-server"
 echo

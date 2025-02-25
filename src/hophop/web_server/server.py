@@ -17,6 +17,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 import psutil
 import signal
+import re
+from datetime import datetime
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'your-secret-key')
@@ -453,6 +455,83 @@ def restart_server():
     
     return True, "Server restarting"
 
+def control_service(action):
+    """Control the rust server systemd service"""
+    try:
+        if action not in ['start', 'stop', 'restart', 'enable', 'disable']:
+            return False, "Invalid action"
+            
+        result = subprocess.run(
+            ['sudo', 'systemctl', action, 'hophop-rust-server'],
+            capture_output=True,
+            text=True
+        )
+        
+        if result.returncode == 0:
+            return True, f"Service {action} command sent successfully"
+        else:
+            return False, f"Service {action} failed: {result.stderr}"
+    except Exception as e:
+        return False, f"Failed to {action} service: {str(e)}"
+
+def get_service_status():
+    """Get detailed status of the rust server systemd service"""
+    try:
+        # Get service status
+        result = subprocess.run(
+            ['systemctl', 'status', 'hophop-rust-server'],
+            capture_output=True,
+            text=True
+        )
+        
+        # Get enabled status
+        enabled_result = subprocess.run(
+            ['systemctl', 'is-enabled', 'hophop-rust-server'],
+            capture_output=True,
+            text=True
+        )
+        is_enabled = enabled_result.returncode == 0
+        
+        # Parse status
+        status = 'stopped'
+        if 'Active: active (running)' in result.stdout:
+            status = 'running'
+        elif 'Active: activating' in result.stdout:
+            status = 'starting'
+        
+        # Get last 50 lines of logs
+        log_result = subprocess.run(
+            ['journalctl', '-u', 'hophop-rust-server', '-n', '50', '--no-pager'],
+            capture_output=True,
+            text=True
+        )
+        
+        return {
+            'status': status,
+            'logs': log_result.stdout.splitlines(),
+            'uptime': extract_uptime(result.stdout),
+            'enabled': is_enabled
+        }
+    except Exception as e:
+        print(f"Error getting service status: {e}")
+        return {
+            'status': 'unknown',
+            'logs': [],
+            'uptime': None,
+            'enabled': False
+        }
+
+def extract_uptime(status_output):
+    """Extract service uptime from systemctl status output"""
+    match = re.search(r'Active: active \(running\) since (.*?);', status_output)
+    if match:
+        try:
+            start_time = datetime.strptime(match.group(1), '%a %Y-%m-%d %H:%M:%S %Z')
+            return (datetime.now() - start_time).total_seconds()
+        except:
+            return None
+    return None
+
 @app.route('/api/server/control', methods=['POST'])
 def server_control():
     """Handle server control commands"""
@@ -460,19 +539,19 @@ def server_control():
         data = request.get_json()
         action = data.get('action')
         
-        if action == 'start':
-            success, message = start_server()
-        elif action == 'stop':
-            success, message = stop_server()
-        elif action == 'restart':
-            success, message = restart_server()
+        if action in ['start', 'stop', 'restart', 'enable', 'disable']:
+            success, message = control_service(action)
         elif action == 'status':
-            success = True
-            message = {
-                'running': is_server_running(),
-                'startup_logs': STARTUP_LOGS[-50:],  # Last 50 lines
-                'uptime': None  # TODO: Add uptime tracking
-            }
+            status = get_service_status()
+            return jsonify({
+                'message': {
+                    'running': status['status'] == 'running',
+                    'status': status['status'],
+                    'startup_logs': status['logs'],
+                    'uptime': status['uptime'],
+                    'enabled': status['enabled']
+                }
+            })
         else:
             return jsonify({'error': 'Invalid action'}), 400
         

@@ -1,2 +1,3 @@
 recursive-include src/hophop/web_server/templates *
-recursive-include src/hophop/web_server/static * 
+recursive-include src/hophop/web_server/static *
+recursive-include src/hophop/web_server/static/img * 

@@ -5,6 +5,8 @@ import json
 import tarfile
 import shutil
 import psutil
+import signal
+import sys
 from pysteamcmdwrapper import SteamCMD, SteamCMDException
 from dotenv import load_dotenv
 
@@ -241,35 +243,52 @@ def start_rust_server():
             "+app.port", "1-"
         ]
 
-        # Create a screen-friendly server name
-        SCREEN_NAME = SERVER_NAME.lower().replace(" ", "_").replace("|", "").replace("\"", "").strip()
+        print("Starting Rust server...")
         
-        print("\nTo start the web console, run in a new terminal:")
-        print("hophop-web-server")
-        
-        # Create the screen command
-        screen_command = [
-            "screen",
-            "-dmS",  # Start as a detached screen session
-            SCREEN_NAME,  # Name of the screen session
-            *command  # Expand the existing command list
-        ]
-        
-        print(f"Starting server in screen session: {SCREEN_NAME}")
-        try:
-            # Check if screen is installed
-            subprocess.run(["which", "screen"], check=True, capture_output=True)
-        except subprocess.CalledProcessError:
-            print("Screen is not installed. Installing screen...")
-            subprocess.run(["sudo", "apt-get", "install", "screen", "-y"])
-        
-        # Start the server in a screen session
-        subprocess.run(screen_command)
-        print(f"Server started in screen session. To attach to it, use: screen -r {SCREEN_NAME}")
+        # Set up signal handlers
+        def handle_signal(signum, frame):
+            print(f"\nReceived signal {signum}, shutting down...")
+            if rust_process:
+                rust_process.terminate()
+                try:
+                    rust_process.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    rust_process.kill()
+            sys.exit(0)
+
+        signal.signal(signal.SIGTERM, handle_signal)
+        signal.signal(signal.SIGINT, handle_signal)
+
+        # Start the server process
+        rust_process = subprocess.Popen(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+            universal_newlines=True
+        )
+
+        print(f"Rust server started with PID: {rust_process.pid}")
+
+        # Monitor the output
+        while True:
+            line = rust_process.stdout.readline()
+            if not line and rust_process.poll() is not None:
+                break
+            if line:
+                print(line.rstrip())
+                sys.stdout.flush()
+
+        # Check exit status
+        exit_code = rust_process.wait()
+        if exit_code != 0:
+            print(f"Server exited with code: {exit_code}")
+            sys.exit(exit_code)
 
     except Exception as e:
         print(f"Error: {e}")
-        exit(1)
+        sys.exit(1)
 
 if __name__ == "__main__":
     start_rust_server() 

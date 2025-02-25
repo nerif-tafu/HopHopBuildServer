@@ -15,8 +15,9 @@ git clone https://github.com/nerif-tafu/HopHopBuildServer.git
 cd HopHopBuildServer
 python3 -m venv venv
 source venv/bin/activate
-pip3 install -r requirements.txt
-python3 bootstrap.py
+pip install -e .
+./install.sh
+hophop-web-server
 ```
 
 ## Requirements
