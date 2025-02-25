@@ -5,10 +5,10 @@ const App = () => {
         max_players: 'Unknown',
         fps: 'Unknown',
         entities: 'Unknown',
-        raw: ''
+        raw: '',
+        console: ''
     });
     const [connectionState, setConnectionState] = React.useState('disconnected');
-    const [consoleOutput, setConsoleOutput] = React.useState('');
     const [currentPage, setCurrentPage] = React.useState('status');
 
     React.useEffect(() => {
@@ -23,18 +23,25 @@ const App = () => {
 
         socket.on('disconnect', () => {
             setConnectionState('disconnected');
+            setServerStatus(prev => ({ ...prev, status: 'offline' }));
         });
 
         socket.on('server_status', (msg) => {
             if (msg && msg.data) {
-                setServerStatus(msg.data);
-                setConnectionState(msg.data.status); // 'online', 'offline', or 'unknown'
+                setServerStatus(prev => ({
+                    ...msg.data,
+                    console: prev.console // Preserve console output
+                }));
+                setConnectionState(msg.data.status);
             }
         });
 
         socket.on('screen_output', (msg) => {
             if (msg && msg.data) {
-                setConsoleOutput(msg.data);
+                setServerStatus(prev => ({
+                    ...prev,
+                    console: prev.console ? `${prev.console}\n${msg.data}` : msg.data
+                }));
             }
         });
 
@@ -57,11 +64,16 @@ const App = () => {
         switch (currentPage) {
             case 'status':
                 return (
-                    <React.Fragment>
-                        <ServerStatus status={serverStatus} />
-                        <ConsoleOutput output={consoleOutput} />
-                        <ConnectionStatus state={connectionState} message={getStatusMessage()} />
-                    </React.Fragment>
+                    <div className="h-full flex flex-col">
+                        <div className="mb-6">
+                            <h2 className="text-xl text-primary">Server Status</h2>
+                        </div>
+                        <div className="flex-1 min-h-0">
+                            <div className="bg-surface-light rounded-lg p-4 h-full flex flex-col">
+                                <ServerStatus status={serverStatus} />
+                            </div>
+                        </div>
+                    </div>
                 );
             case 'config':
                 return <window.ConfigPage />;

@@ -79,7 +79,7 @@ const PluginsPage = () => {
         if (!selectedFile) return;
 
         const formData = new FormData();
-        formData.append('plugin', selectedFile);
+        formData.append('file', selectedFile);
 
         setIsLoading(true);
         try {

@@ -21,6 +21,7 @@ import re
 from datetime import datetime
 import shutil
 from werkzeug.utils import secure_filename
+import select
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'your-secret-key')
@@ -651,6 +652,7 @@ def delete_plugin():
         base_path = os.path.join(os.path.expanduser('~'), 'HopHopBuildServer')
         file_paths = [
             os.path.join(base_path, 'src/hophop/rust_server/scripts', f'{name}.cs'),
+            os.path.join(base_path, 'rust_server/carbon/plugins', f'{name}.cs'),
             os.path.join(base_path, 'rust_server/carbon/configs', f'{name}.json'),
             os.path.join(base_path, 'rust_server/carbon/data', f'{name}.json'),
             os.path.join(base_path, 'rust_server/carbon/lang/en', f'{name}.json')
@@ -728,6 +730,51 @@ def get_plugin_content(plugin_name, file_type):
             return jsonify({'content': ''})  # Empty content for code files
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@socketio.on('server_control_status')
+def handle_server_status():
+    """Send server control status updates through WebSocket"""
+    try:
+        status = get_server_status()  # Your existing status fetching logic
+        socketio.emit('server_control_status', status)
+    except Exception as e:
+        socketio.emit('server_control_status', {'error': str(e)})
+
+def emit_server_log(log_line):
+    """Emit server log updates in real-time"""
+    try:
+        socketio.emit('server_control_logs', {'logs': log_line})
+    except Exception as e:
+        socketio.emit('server_control_status', {'error': str(e)})
+
+def monitor_journal():
+    """Monitor systemd journal in real-time and emit updates"""
+    try:
+        # Start journalctl in follow mode
+        process = subprocess.Popen(
+            ['journalctl', '-u', 'hophop-rust-server', '-f', '-n', '0', '--no-pager'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            universal_newlines=True
+        )
+
+        while True:
+            # Use select to check for new output without blocking
+            if select.select([process.stdout], [], [], 1)[0]:
+                line = process.stdout.readline()
+                if line:
+                    emit_server_log(line.strip())
+            
+            # Check if process is still alive
+            if process.poll() is not None:
+                break
+
+    except Exception as e:
+        print(f"Error monitoring journal: {e}")
+
+# Start the journal monitor in a separate thread
+journal_thread = threading.Thread(target=monitor_journal, daemon=True)
+journal_thread.start()
 
 if __name__ == "__main__":
     run_server() 

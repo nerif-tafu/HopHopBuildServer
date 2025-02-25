@@ -73,53 +73,31 @@ const ConfigPage = () => {
         // Special case for RUST_BRANCH to use a dropdown
         if (key === 'RUST_BRANCH') {
             return (
-                <div key={key} className="flex flex-col md:flex-row md:items-center p-4 border-b border-surface-lighter">
-                    <label className="mb-2 md:mb-0 md:w-1/3 text-primary font-medium">{key}</label>
-                    <div className="w-full md:w-2/3">
-                        <select
-                            value={currentValue}
-                            onChange={(e) => handleConfigChange(key, e.target.value)}
-                            className="w-full p-2 bg-neutral-700 rounded border border-neutral-600 
-                                text-white focus:outline-none focus:border-chardonnay-500"
-                        >
-                            {RUST_BRANCHES.map(branch => (
-                                <option key={branch.value} value={branch.value}>
-                                    {branch.label}
-                                </option>
-                            ))}
-                        </select>
-                        {error && <p className="mt-1 text-sm text-status-error">{error}</p>}
-                        {defaultValue !== currentValue && (
-                            <p className="mt-1 text-sm text-neutral-500">
-                                Default: {defaultValue}
-                            </p>
-                        )}
-                    </div>
-                </div>
+                <select
+                    value={currentValue}
+                    onChange={(e) => handleConfigChange(key, e.target.value)}
+                    className="w-full p-2 bg-neutral-700 rounded border border-neutral-600 
+                        text-white focus:outline-none focus:border-chardonnay-500"
+                >
+                    {RUST_BRANCHES.map(branch => (
+                        <option key={branch.value} value={branch.value}>
+                            {branch.label}
+                        </option>
+                    ))}
+                </select>
             );
         }
 
         // Regular input field
         return (
-            <div key={key} className="flex flex-col md:flex-row md:items-center p-4 border-b border-surface-lighter">
-                <label className="mb-2 md:mb-0 md:w-1/3 text-primary font-medium">{key}</label>
-                <div className="w-full md:w-2/3">
-                    <input
-                        type="text"
-                        value={currentValue}
-                        onChange={(e) => handleConfigChange(key, e.target.value)}
-                        className={`w-full p-2 bg-neutral-700 rounded border 
-                            ${error ? 'border-status-error' : 'border-neutral-600'} 
-                            text-white focus:outline-none focus:border-chardonnay-500`}
-                    />
-                    {error && <p className="mt-1 text-sm text-status-error">{error}</p>}
-                    {defaultValue !== currentValue && (
-                        <p className="mt-1 text-sm text-neutral-500">
-                            Default: {defaultValue}
-                        </p>
-                    )}
-                </div>
-            </div>
+            <input
+                type="text"
+                value={currentValue}
+                onChange={(e) => handleConfigChange(key, e.target.value)}
+                className={`w-full p-2 bg-neutral-700 rounded border 
+                    ${error ? 'border-status-error' : 'border-neutral-600'} 
+                    text-white focus:outline-none focus:border-chardonnay-500`}
+            />
         );
     };
 
@@ -144,7 +122,33 @@ const ConfigPage = () => {
             <div className="h-full flex flex-col">
                 <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-neutral-600 
                     scrollbar-track-neutral-800 hover:scrollbar-thumb-neutral-500">
-                    {Object.keys(config.defaults).map(key => renderConfigField(key))}
+                    <div className="space-y-3">
+                        {Object.keys(config.defaults).map(key => {
+                            const defaultValue = config.defaults[key] || '';
+                            const currentValue = config.current[key] || '';
+                            const error = errors[key];
+                            
+                            return (
+                                <div key={key} 
+                                    className="flex flex-col md:flex-row md:items-center p-4 bg-surface 
+                                        rounded-lg border border-surface-lighter"
+                                >
+                                    <label className="mb-2 md:mb-0 md:w-1/3 text-primary font-medium">
+                                        {key}
+                                    </label>
+                                    <div className="w-full md:w-2/3">
+                                        {renderConfigField(key)}
+                                        {error && <p className="mt-1 text-sm text-status-error">{error}</p>}
+                                        {defaultValue !== currentValue && (
+                                            <p className="mt-1 text-sm text-neutral-500">
+                                                Default: {defaultValue}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
             </div>
         );
@@ -266,7 +270,7 @@ const ConfigPage = () => {
                 <h2 className="text-xl text-primary">Server Configuration</h2>
             </div>
             <div className="flex-1 min-h-0">
-                <div className="bg-surface-light rounded-lg h-full">
+                <div className="bg-surface-light rounded-lg p-4 h-full flex flex-col">
                     {renderConfigSection()}
                 </div>
             </div>

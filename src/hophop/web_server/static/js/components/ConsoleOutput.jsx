@@ -1,12 +1,13 @@
 const ConsoleOutput = ({ output }) => {
     const [rconCommand, setRconCommand] = React.useState('');
     const [isLoading, setIsLoading] = React.useState(false);
-    const [isConnected, setIsConnected] = React.useState(false);
-    const [toast, setToast] = React.useState(null);
     const [showSuggestions, setShowSuggestions] = React.useState(false);
-    const consoleRef = React.useRef(null);
     const [commandHistory, setCommandHistory] = React.useState([]);
     const [historyIndex, setHistoryIndex] = React.useState(-1);
+    const [toast, setToast] = React.useState(null);
+    const consoleRef = React.useRef(null);
+    const [isConnected, setIsConnected] = React.useState(false);
+    const [autoScroll, setAutoScroll] = React.useState(true);
 
     const RCON_COMMANDS = [
         { command: 'admin.mutevoice', args: '"player"', desc: 'Prevent a player from speaking in-game' },
@@ -131,14 +132,22 @@ const ConsoleOutput = ({ output }) => {
     };
 
     React.useEffect(() => {
-        // Check if we're connected by looking for specific messages in the output
-        setIsConnected(output.includes('Server startup complete'));
+        setIsConnected(window.serverStatus && window.serverStatus.status === 'online');
+    }, [window.serverStatus && window.serverStatus.status]);
 
-        // Auto-scroll to bottom when output changes
-        if (consoleRef.current) {
+    // Handle scroll events
+    const handleScroll = (e) => {
+        const element = e.target;
+        const isAtBottom = element.scrollHeight - element.scrollTop <= element.clientHeight + 50;
+        setAutoScroll(isAtBottom);
+    };
+
+    // Scroll effect
+    React.useEffect(() => {
+        if (consoleRef.current && autoScroll) {
             consoleRef.current.scrollTop = consoleRef.current.scrollHeight;
         }
-    }, [output]);
+    }, [output, autoScroll]);
 
     const showToast = (message, type = 'info') => {
         setToast({ message, type });
@@ -240,73 +249,68 @@ const ConsoleOutput = ({ output }) => {
     };
 
     return (
-        <div className="flex-1 flex flex-col min-h-0">
+        <div className="h-full flex flex-col">
             {/* Console Output */}
-            <div 
-                ref={consoleRef}
-                className="flex-1 bg-neutral-800 rounded p-2 mb-4 overflow-y-auto font-mono text-sm"
-            >
-                <pre className="text-white whitespace-pre-wrap break-words overflow-x-hidden w-full">{output}</pre>
+            <div className="flex-1 min-h-0 bg-surface border border-surface-lighter">
+                <div 
+                    ref={consoleRef}
+                    onScroll={handleScroll}
+                    className="h-full p-4 overflow-y-auto font-mono text-sm scrollbar-thin 
+                        scrollbar-thumb-neutral-600 scrollbar-track-neutral-800 
+                        hover:scrollbar-thumb-neutral-500 bg-neutral-800"
+                >
+                    <pre className="text-white whitespace-pre-wrap break-words overflow-x-hidden w-full">
+                        {output}
+                    </pre>
+                </div>
             </div>
 
             {/* RCON Command Input */}
-            <div className="bg-surface rounded-lg">
-                <form onSubmit={handleRconSubmit} className="flex gap-2">
-                    <div className="flex-1 relative">
-                        <input
-                            type="text"
-                            value={rconCommand}
-                            onChange={(e) => {
-                                setRconCommand(e.target.value);
-                                setShowSuggestions(true);
-                            }}
-                            onKeyDown={handleKeyDown}
-                            onFocus={() => setShowSuggestions(true)}
-                            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                            placeholder="Enter RCON command..."
-                            className={`w-full bg-surface-light p-2 rounded text-neutral-900 placeholder-neutral-400
-                                ${!isConnected ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            disabled={!isConnected || isLoading}
-                        />
-                        {(!isConnected || isLoading) && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-surface-light bg-opacity-90 rounded">
-                                <span className="text-neutral-500 text-sm">
-                                    {!isConnected ? 'Waiting for server...' : 'Sending command...'}
-                                </span>
-                            </div>
-                        )}
-                        
-                        {/* Command Suggestions */}
-                        {showSuggestions && rconCommand && (
-                            <div className="absolute bottom-full left-0 right-0 mb-1 bg-surface-light rounded shadow-lg z-10 max-h-60 overflow-y-auto">
-                                {getFilteredCommands().map((cmd, index) => (
-                                    <div
-                                        key={cmd.command}
-                                        className="p-2 hover:bg-surface cursor-pointer border-b border-surface-lighter last:border-0"
-                                        onClick={() => handleCommandSelect(cmd)}
-                                    >
-                                        <div className="font-mono text-sm text-neutral-900">
-                                            {cmd.command} {cmd.args}
-                                        </div>
-                                        <div className="text-xs text-neutral-500">{cmd.desc}</div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                    <button
-                        type="submit"
-                        disabled={!isConnected || isLoading || !rconCommand.trim()}
-                        className={`px-4 py-2 rounded transition-colors ${
-                            isConnected && !isLoading && rconCommand.trim()
-                                ? 'bg-chardonnay-600 hover:bg-chardonnay-700 text-white cursor-pointer'
-                                : 'bg-neutral-300 text-neutral-500 cursor-not-allowed'
-                        }`}
-                    >
-                        {isLoading ? 'Sending...' : 'Send'}
-                    </button>
-                </form>
-            </div>
+            <form onSubmit={handleRconSubmit} className="flex gap-2 py-2">
+                <div className="flex-1 relative">
+                    <input
+                        type="text"
+                        value={rconCommand}
+                        onChange={(e) => {
+                            setRconCommand(e.target.value);
+                            setShowSuggestions(true);
+                        }}
+                        onKeyDown={handleKeyDown}
+                        onFocus={() => setShowSuggestions(true)}
+                        onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                        placeholder="Enter RCON command..."
+                        className={`w-full bg-neutral-800 p-2 rounded text-white placeholder-neutral-400
+                            ${!isConnected ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        disabled={!isConnected || isLoading}
+                    />
+                    
+                    {/* Command Suggestions */}
+                    {showSuggestions && rconCommand && (
+                        <div className="absolute left-0 right-0 bottom-full mb-1 bg-neutral-900 rounded border border-neutral-700 shadow-lg">
+                            {getFilteredCommands().map((cmd, index) => (
+                                <button
+                                    key={cmd.command}
+                                    onClick={() => handleCommandSelect(cmd)}
+                                    className="w-full p-2 text-left hover:bg-neutral-700 text-white text-sm 
+                                        border-b border-neutral-700 last:border-b-0"
+                                >
+                                    <span className="font-mono text-blue-400">{cmd.command}</span>
+                                    <span className="text-neutral-400 ml-2">{cmd.desc}</span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                    
+                    {/* Loading overlay */}
+                    {(!isConnected || isLoading) && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-neutral-800 bg-opacity-90 rounded">
+                            <span className="text-neutral-400 text-sm">
+                                {!isConnected ? 'Waiting for server...' : 'Sending command...'}
+                            </span>
+                        </div>
+                    )}
+                </div>
+            </form>
 
             {toast && (
                 <Toast
