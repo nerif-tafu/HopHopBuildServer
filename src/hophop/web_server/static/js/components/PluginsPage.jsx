@@ -8,24 +8,16 @@ const PluginsPage = () => {
     const [selectedFileType, setSelectedFileType] = React.useState('code');
     const fileInputRef = React.useRef();
     const containerRef = React.useRef(null);
-    const [lineHeights, setLineHeights] = React.useState([]);
+    const [view, setView] = React.useState(null);
 
     React.useEffect(() => {
         fetchPlugins();
     }, []);
 
-    React.useEffect(() => {
-        if (containerRef.current) {
-            const width = containerRef.current.offsetWidth;
-            setLineHeights(getLineHeights(editorContent, width, 8)); // 8px approx char width
-        }
-    }, [editorContent]);
-
     const fetchPlugins = async () => {
         try {
             const response = await fetch('/api/plugins');
             const data = await response.json();
-            console.log(data);
             if (data.error) throw new Error(data.error);
             setPlugins(data.plugins);
         } catch (error) {
@@ -200,17 +192,15 @@ const PluginsPage = () => {
         }
     };
 
-    const getLineHeights = (text, width, charWidth) => {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        ctx.font = '14px monospace'; // Match your editor font
-
-        return text.split(/\r?\n/).map(line => {
-            if (!line) return 1; // Empty lines should have height of 1
-            const lineWidth = ctx.measureText(line).width;
-            const wrappedLines = Math.max(1, Math.ceil(lineWidth / (width - 64))); // Increased padding for safety
-            return wrappedLines;
-        });
+    const getLanguageFromFileType = (fileType) => {
+        switch (fileType) {
+            case 'code':
+                return 'csharp';
+            case 'config':
+                return 'json';
+            default:
+                return 'plaintext';
+        }
     };
 
     const renderPluginActions = (plugin) => (
@@ -293,6 +283,53 @@ const PluginsPage = () => {
         return `${selectedPlugin.name} - ${types[selectedFileType]}`;
     };
 
+    React.useEffect(() => {
+        if (!selectedPlugin || !window.CodeMirror) return;
+        
+        const container = document.getElementById('codemirror-container');
+        if (!container) return;
+
+        const editor = window.CodeMirror(container, {
+            value: editorContent,
+            mode: selectedFileType === 'code' ? 'text/x-csharp' : 'application/json',
+            theme: 'dracula',
+            lineNumbers: true,
+            autofocus: true,
+            tabSize: 4,
+            indentUnit: 4,
+            lineWrapping: true,
+            matchBrackets: true,
+            autoCloseBrackets: true,
+            styleActiveLine: true,
+            viewportMargin: Infinity,
+            height: "auto"
+        });
+
+        // Make editor responsive
+        const resizeEditor = () => {
+            editor.setSize("100%", "100%");
+        };
+
+        // Initial size
+        resizeEditor();
+
+        // Handle window resizes
+        window.addEventListener('resize', resizeEditor);
+
+        editor.on('change', (cm) => {
+            setEditorContent(cm.getValue());
+        });
+
+        // Store editor instance for cleanup
+        setView(editor);
+
+        // Cleanup
+        return () => {
+            window.removeEventListener('resize', resizeEditor);
+            container.innerHTML = '';
+        };
+    }, [selectedPlugin, selectedFileType]);
+
     return (
         <div className="h-full flex flex-col">
             <h2 className="text-xl text-primary mb-4">Server Plugins</h2>
@@ -344,79 +381,57 @@ const PluginsPage = () => {
                     <div className="space-y-2">
                         {plugins.map(plugin => (
                             <div key={plugin.name} 
-                                className="flex items-center justify-between p-3 bg-surface-light rounded 
-                                    hover:bg-surface-lighter transition-colors"
+                                className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-surface-light rounded 
+                                    hover:bg-surface-lighter transition-colors gap-3"
                             >
-                                <div className="flex items-center gap-3">
-                                    <div className={`text-lg ${plugin.active ? 'text-status-success' : 'text-neutral-400'}`}>
-                                        <i className="fas fa-puzzle-piece"></i>
-                                    </div>
-                                    <span className="font-mono text-sm">{plugin.name}</span>
+                                {/* Plugin name */}
+                                <div className="font-mono text-sm">
+                                    {plugin.name}
                                 </div>
-                                <div className="flex items-center gap-2">
+
+                                {/* Actions */}
+                                <div className="flex flex-wrap gap-2">
                                     <button
                                         onClick={() => fetchPluginContent(plugin, 'code')}
-                                        className="px-3 py-1.5 text-sm rounded bg-surface hover:bg-neutral-200 
-                                            transition-colors flex items-center gap-1.5"
+                                        className="flex-1 sm:flex-none px-3 py-1.5 text-sm rounded bg-surface hover:bg-neutral-200 
+                                            transition-colors flex items-center justify-center gap-1.5"
                                     >
                                         <i className="fas fa-code"></i>
-                                        Edit Code
+                                        <span className="sm:hidden md:inline">Code</span>
                                     </button>
                                     
                                     {plugin.hasConfig && (
                                         <button
                                             onClick={() => fetchPluginContent(plugin, 'config')}
-                                            className="px-3 py-1.5 text-sm rounded bg-surface hover:bg-neutral-200 
-                                                transition-colors flex items-center gap-1.5"
+                                            className="flex-1 sm:flex-none px-3 py-1.5 text-sm rounded bg-surface hover:bg-neutral-200 
+                                                transition-colors flex items-center justify-center gap-1.5"
                                         >
                                             <i className="fas fa-cog"></i>
-                                            Config
+                                            <span className="sm:hidden md:inline">Config</span>
                                         </button>
                                     )}
                                     
-                                    {plugin.hasData && (
-                                        <button
-                                            onClick={() => fetchPluginContent(plugin, 'data')}
-                                            className="px-3 py-1.5 text-sm rounded bg-surface hover:bg-neutral-200 
-                                                transition-colors flex items-center gap-1.5"
-                                        >
-                                            <i className="fas fa-database"></i>
-                                            Data
-                                        </button>
-                                    )}
-                                    
-                                    {plugin.hasLang && (
-                                        <button
-                                            onClick={() => fetchPluginContent(plugin, 'lang')}
-                                            className="px-3 py-1.5 text-sm rounded bg-surface hover:bg-neutral-200 
-                                                transition-colors flex items-center gap-1.5"
-                                        >
-                                            <i className="fas fa-language"></i>
-                                            Language
-                                        </button>
-                                    )}
-
                                     <button
                                         onClick={() => togglePlugin(plugin)}
                                         disabled={isLoading}
-                                        className={`px-3 py-1.5 text-sm rounded text-white disabled:opacity-50 
-                                            transition-colors flex items-center gap-1.5
+                                        className={`flex-1 sm:flex-none px-3 py-1.5 text-sm rounded text-white disabled:opacity-50 
+                                            transition-colors flex items-center justify-center gap-1.5
                                             ${plugin.active 
                                                 ? 'bg-green-500 hover:bg-green-600' 
                                                 : 'bg-red-500 hover:bg-red-600'
                                             }`}
                                     >
                                         <i className={`fas ${plugin.active ? 'fa-toggle-on' : 'fa-toggle-off'}`}></i>
-                                        {plugin.active ? 'Enabled' : 'Disabled'}
+                                        <span className="sm:hidden md:inline">{plugin.active ? 'Enabled' : 'Disabled'}</span>
                                     </button>
 
                                     <button
                                         onClick={() => deletePlugin(plugin)}
-                                        className="px-3 py-1.5 text-sm rounded bg-red-500 hover:bg-red-600 
-                                            text-white transition-colors flex items-center gap-1.5"
+                                        className="flex-1 sm:flex-none px-3 py-1.5 text-sm rounded bg-red-500 hover:bg-red-600 
+                                            text-white transition-colors flex items-center justify-center gap-1.5"
                                     >
                                         <i className="fas fa-trash"></i>
-                                        Delete
+                                        <span className="sm:hidden md:inline">Delete</span>
                                     </button>
                                 </div>
                             </div>
@@ -434,18 +449,18 @@ const PluginsPage = () => {
 
             {/* Editor Modal */}
             {selectedPlugin && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-surface rounded-lg w-full h-[90vh] max-w-5xl flex flex-col">
-                        <div className="flex items-center justify-between p-4 border-b border-surface-lighter">
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
+                    <div className="bg-surface rounded-lg w-full h-[95vh] sm:h-[90vh] max-w-5xl flex flex-col">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border-b border-surface-lighter gap-4">
                             <h3 className="text-lg text-primary flex items-center gap-2">
                                 <i className="fas fa-puzzle-piece"></i>
                                 {getEditorTitle()}
                             </h3>
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
                                 <button
                                     onClick={savePluginContent}
                                     disabled={!isContentModified()}
-                                    className="px-4 py-2 bg-chardonnay-500 text-white rounded 
+                                    className="flex-1 sm:flex-none px-4 py-2 bg-chardonnay-500 text-white rounded 
                                         hover:bg-chardonnay-600 disabled:opacity-50 
                                         disabled:cursor-not-allowed transition-colors"
                                 >
@@ -453,7 +468,7 @@ const PluginsPage = () => {
                                 </button>
                                 <button
                                     onClick={handleCopyToClipboard}
-                                    className="px-4 py-2 bg-neutral-600 text-white rounded 
+                                    className="flex-1 sm:flex-none px-4 py-2 bg-neutral-600 text-white rounded 
                                         hover:bg-neutral-700 transition-colors"
                                     title="Copy to clipboard"
                                 >
@@ -461,7 +476,7 @@ const PluginsPage = () => {
                                 </button>
                                 <button
                                     onClick={handleDownload}
-                                    className="px-4 py-2 bg-neutral-600 text-white rounded 
+                                    className="flex-1 sm:flex-none px-4 py-2 bg-neutral-600 text-white rounded 
                                         hover:bg-neutral-700 transition-colors"
                                     title="Download file"
                                 >
@@ -477,38 +492,17 @@ const PluginsPage = () => {
                                             setSelectedPlugin(null);
                                         }
                                     }}
-                                    className="p-2 text-neutral-500 hover:text-neutral-700 transition-colors"
+                                    className="flex-1 sm:flex-none p-2 text-neutral-500 hover:text-neutral-700 transition-colors"
                                 >
                                     <i className="fas fa-times"></i>
                                 </button>
                             </div>
                         </div>
-                        <div className="flex-1 p-4 overflow-hidden">
+                        <div className="flex-1 p-2 sm:p-4 overflow-hidden">
                             <div className="h-full flex rounded bg-neutral-800">
-                                <div className="w-full overflow-auto" ref={containerRef}>
-                                    <div className="flex min-w-full">
-                                        {/* Line numbers - added px-6 for more padding */}
-                                        <div className="py-4 px-6 bg-neutral-900 text-neutral-600 select-none font-mono text-sm text-right border-r border-neutral-700 min-w-[4rem]">
-                                            {editorContent.split(/\r?\n/).map((_, i) => (
-                                                <div key={i} style={{ height: `${lineHeights[i] * 1.5}rem` }} className="relative">
-                                                    <span className="absolute right-0">{i + 1}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                        {/* Editor - added px-6 to match line numbers */}
-                                        <textarea
-                                            value={editorContent}
-                                            onChange={(e) => setEditorContent(e.target.value)}
-                                            className="px-6 py-4 font-mono text-sm text-white bg-transparent 
-                                                resize-none focus:outline-none focus:ring-0 flex-1 
-                                                overflow-hidden whitespace-pre-wrap"
-                                            style={{
-                                                lineHeight: "1.5rem",
-                                                tabSize: 4,
-                                            }}
-                                            spellCheck="false"
-                                        />
-                                    </div>
+                                <div className="w-full overflow-auto scrollbar-thin scrollbar-thumb-neutral-600 
+                                    scrollbar-track-neutral-800 hover:scrollbar-thumb-neutral-500">
+                                    <div id="codemirror-container" className="h-full" />
                                 </div>
                             </div>
                         </div>

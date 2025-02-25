@@ -65,80 +65,91 @@ const ConfigPage = () => {
         { value: 'preview', label: 'Preview (Experimental)' }
     ];
 
-    const renderConfigField = (key, defaultValue) => {
+    const renderConfigField = (key) => {
+        const currentValue = config.current[key] || '';
+        const defaultValue = config.defaults[key] || '';
         const error = errors[key];
-        const fieldClasses = `bg-surface p-2 rounded text-neutral-900 md:col-span-2 placeholder-neutral-400 
-            ${error ? 'border-status-error' : 'border-surface-lighter'}`;
 
+        // Special case for RUST_BRANCH to use a dropdown
         if (key === 'RUST_BRANCH') {
             return (
-                <div className="md:col-span-2">
-                    <select
-                        value={config.current[key] || defaultValue}
-                        onChange={(e) => handleConfigChange(key, e.target.value)}
-                        className={fieldClasses}
-                    >
-                        {RUST_BRANCHES.map(branch => (
-                            <option key={branch.value} value={branch.value}>
-                                {branch.label}
-                            </option>
-                        ))}
-                    </select>
-                    {error && <div className="text-status-error text-sm mt-1">{error}</div>}
+                <div key={key} className="flex flex-col md:flex-row md:items-center p-4 border-b border-surface-lighter">
+                    <label className="mb-2 md:mb-0 md:w-1/3 text-primary font-medium">{key}</label>
+                    <div className="w-full md:w-2/3">
+                        <select
+                            value={currentValue}
+                            onChange={(e) => handleConfigChange(key, e.target.value)}
+                            className="w-full p-2 bg-neutral-700 rounded border border-neutral-600 
+                                text-white focus:outline-none focus:border-chardonnay-500"
+                        >
+                            {RUST_BRANCHES.map(branch => (
+                                <option key={branch.value} value={branch.value}>
+                                    {branch.label}
+                                </option>
+                            ))}
+                        </select>
+                        {error && <p className="mt-1 text-sm text-status-error">{error}</p>}
+                        {defaultValue !== currentValue && (
+                            <p className="mt-1 text-sm text-neutral-500">
+                                Default: {defaultValue}
+                            </p>
+                        )}
+                    </div>
                 </div>
             );
         }
 
+        // Regular input field
         return (
-            <div className="md:col-span-2">
-                <input
-                    type={['SERVER_PORT', 'SERVER_RCON_PORT', 'SERVER_SEED', 'SERVER_WORLDSIZE', 'SERVER_MAXPLAYERS'].includes(key) ? 'number' : 'text'}
-                    value={config.current[key] || ''}
-                    onChange={(e) => handleConfigChange(key, e.target.value)}
-                    placeholder={defaultValue}
-                    className={fieldClasses}
-                />
-                {error && <div className="text-status-error text-sm mt-1">{error}</div>}
+            <div key={key} className="flex flex-col md:flex-row md:items-center p-4 border-b border-surface-lighter">
+                <label className="mb-2 md:mb-0 md:w-1/3 text-primary font-medium">{key}</label>
+                <div className="w-full md:w-2/3">
+                    <input
+                        type="text"
+                        value={currentValue}
+                        onChange={(e) => handleConfigChange(key, e.target.value)}
+                        className={`w-full p-2 bg-neutral-700 rounded border 
+                            ${error ? 'border-status-error' : 'border-neutral-600'} 
+                            text-white focus:outline-none focus:border-chardonnay-500`}
+                    />
+                    {error && <p className="mt-1 text-sm text-status-error">{error}</p>}
+                    {defaultValue !== currentValue && (
+                        <p className="mt-1 text-sm text-neutral-500">
+                            Default: {defaultValue}
+                        </p>
+                    )}
+                </div>
             </div>
         );
     };
 
     const renderConfigSection = () => {
-        if (config.loading) return <div>Loading...</div>;
-        if (config.error) return <div className="text-red-500">{config.error}</div>;
-
-        const renderField = (key) => {
-            const isOptional = window.configValidation[key] && window.configValidation[key].optional;
+        if (config.loading) {
             return (
-                <div key={key} className="mb-4">
-                    <label className="block text-sm font-medium mb-1">
-                        {key.replace(/_/g, ' ')}
-                        {isOptional && (
-                            <span className="ml-2 text-neutral-400 font-normal">
-                                (Optional)
-                            </span>
-                        )}
-                    </label>
-                    <input
-                        type="text"
-                        value={config.current[key] || ''}
-                        onChange={(e) => handleConfigChange(key, e.target.value)}
-                        className={`w-full p-2 rounded border ${
-                            errors[key] 
-                                ? 'border-red-500 focus:ring-red-500' 
-                                : 'border-surface-lighter focus:ring-chardonnay-500'
-                        } focus:outline-none focus:ring-2`}
-                    />
-                    {errors[key] && (
-                        <p className="mt-1 text-sm text-red-500">{errors[key]}</p>
-                    )}
+                <div className="bg-surface rounded-lg h-full">
+                    <div className="p-4 text-center text-neutral-500">
+                        Loading configuration...
+                    </div>
                 </div>
             );
-        };
+        }
+
+        if (config.error) {
+            return (
+                <div className="bg-surface rounded-lg h-full">
+                    <div className="p-4 text-status-error">
+                        {config.error}
+                    </div>
+                </div>
+            );
+        }
 
         return (
-            <div className="bg-surface rounded-lg p-4">
-                {Object.keys(config.current).map(renderField)}
+            <div className="bg-surface rounded-lg h-full flex flex-col">
+                <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-neutral-600 
+                    scrollbar-track-neutral-800 hover:scrollbar-thumb-neutral-500">
+                    {Object.keys(config.defaults).map(key => renderConfigField(key))}
+                </div>
             </div>
         );
     };
@@ -251,7 +262,8 @@ const ConfigPage = () => {
 
     return (
         <div className="h-full flex flex-col">
-            <div className="flex justify-between items-center mb-4">
+            {/* Header - hide save button on mobile */}
+            <div className="hidden sm:flex sm:flex-row justify-between items-center gap-4 mb-4">
                 <h2 className="text-xl text-primary">Server Configuration</h2>
                 <button 
                     onClick={handleSave}
@@ -265,9 +277,33 @@ const ConfigPage = () => {
                     Save Changes
                 </button>
             </div>
+
+            {/* Mobile header - without save button */}
+            <div className="sm:hidden mb-4">
+                <h2 className="text-xl text-primary">Server Configuration</h2>
+            </div>
             
-            <div className="flex-1 min-h-0">
-                {renderConfigSection()}
+            {/* Main content */}
+            <div className="flex-1 min-h-0 flex flex-col">
+                {/* Config section */}
+                <div className="flex-1 min-h-0">
+                    {renderConfigSection()}
+                </div>
+
+                {/* Mobile save button - fixed at bottom */}
+                <div className="sm:hidden mt-4">
+                    <button 
+                        onClick={handleSave}
+                        disabled={!hasChanges}
+                        className={`w-full px-4 py-3 rounded transition-colors ${
+                            hasChanges 
+                                ? 'bg-chardonnay-600 hover:bg-chardonnay-700 text-white cursor-pointer' 
+                                : 'bg-neutral-300 text-neutral-500 cursor-not-allowed'
+                        }`}
+                    >
+                        Save Changes
+                    </button>
+                </div>
             </div>
             
             {toast && (
