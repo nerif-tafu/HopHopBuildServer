@@ -19,6 +19,8 @@ import psutil
 import signal
 import re
 from datetime import datetime
+import shutil
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'your-secret-key')
@@ -47,6 +49,14 @@ RUST_SERVER_SCRIPT = ROOT_DIR / 'hophop-rust-server'
 VENV_PATH = ROOT_DIR / 'venv'
 SERVER_PROCESS = None
 STARTUP_LOGS = []
+
+# Add these paths to your existing paths
+SCRIPTS_DIR = os.path.join(ROOT_DIR, "src/hophop/rust_server/scripts")
+PLUGINS_DIR = os.path.join(ROOT_DIR, "rust_server/carbon/plugins")
+
+# Ensure directories exist
+os.makedirs(SCRIPTS_DIR, exist_ok=True)
+os.makedirs(PLUGINS_DIR, exist_ok=True)
 
 def is_port_in_use(port: int) -> bool:
     """Check if a port is already in use"""
@@ -560,6 +570,162 @@ def server_control():
         else:
             return jsonify({'error': message}), 500
             
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+def get_plugin_status(plugin_name):
+    """Check if a plugin is active (exists in plugins directory)"""
+    return os.path.exists(os.path.join(PLUGINS_DIR, plugin_name))
+
+@app.route('/api/plugins', methods=['GET'])
+def list_plugins():
+    """List all available plugins and their status"""
+    try:
+        base_path = os.path.join(os.path.expanduser('~'), 'HopHopBuildServer')
+        scripts_dir = os.path.join(base_path, 'src/hophop/rust_server/scripts')
+        config_dir = os.path.join(base_path, 'rust_server/carbon/configs')
+        data_dir = os.path.join(base_path, 'rust_server/carbon/data')
+        lang_dir = os.path.join(base_path, 'rust_server/carbon/lang/en')
+
+        plugins = []
+        for file in os.listdir(scripts_dir):
+            if file.endswith('.cs'):
+                plugin_name = file[:-3]  # Remove .cs extension
+                plugins.append({
+                    'name': plugin_name,
+                    'active': get_plugin_status(file),
+                    'hasConfig': os.path.exists(os.path.join(config_dir, f'{plugin_name}.json')),
+                    'hasData': os.path.exists(os.path.join(data_dir, f'{plugin_name}.json')),
+                    'hasLang': os.path.exists(os.path.join(lang_dir, f'{plugin_name}.json'))
+                })
+        return jsonify({'plugins': plugins})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/plugins/toggle', methods=['POST'])
+def toggle_plugin():
+    """Toggle plugin active state"""
+    try:
+        data = request.json
+        name = data.get('name')
+        activate = data.get('activate', False)
+        
+        if not name:
+            return jsonify({'error': 'Plugin name is required'})
+
+        base_path = os.path.join(os.path.expanduser('~'), 'HopHopBuildServer')
+        source_path = os.path.join(base_path, 'src/hophop/rust_server/scripts', f'{name}.cs')
+        target_path = os.path.join(base_path, 'rust_server/carbon/plugins', f'{name}.cs')
+        
+        if not os.path.exists(source_path):
+            return jsonify({'error': 'Plugin not found'})
+
+        try:
+            if activate:
+                shutil.copy2(source_path, target_path)
+                message = 'Plugin activated'
+            else:
+                if os.path.exists(target_path):
+                    os.remove(target_path)
+                message = 'Plugin deactivated'
+            
+            return jsonify({
+                'message': message,
+                'active': activate
+            })
+        except Exception as e:
+            return jsonify({'error': f'Failed to toggle plugin: {str(e)}'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/plugins/delete', methods=['POST'])
+def delete_plugin():
+    """Delete a plugin and its associated files"""
+    try:
+        data = request.json
+        name = data.get('name')
+        
+        if not name:
+            return jsonify({'error': 'Plugin name is required'})
+
+        base_path = os.path.join(os.path.expanduser('~'), 'HopHopBuildServer')
+        file_paths = [
+            os.path.join(base_path, 'src/hophop/rust_server/scripts', f'{name}.cs'),
+            os.path.join(base_path, 'rust_server/carbon/configs', f'{name}.json'),
+            os.path.join(base_path, 'rust_server/carbon/data', f'{name}.json'),
+            os.path.join(base_path, 'rust_server/carbon/lang/en', f'{name}.json')
+        ]
+
+        for path in file_paths:
+            if os.path.exists(path):
+                try:
+                    os.remove(path)
+                except Exception as e:
+                    return jsonify({'error': f'Failed to delete {path}: {str(e)}'})
+
+        return jsonify({'status': 'success'})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/plugins/upload', methods=['POST'])
+def upload_plugin():
+    """Upload a new plugin file"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file provided'})
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'})
+        
+        if not file.filename.endswith('.cs'):
+            return jsonify({'error': 'Only .cs files are allowed'})
+        
+        base_path = os.path.join(os.path.expanduser('~'), 'HopHopBuildServer')
+        filename = secure_filename(file.filename)
+        file_path = os.path.join(base_path, 'src/hophop/rust_server/scripts', filename)
+        
+        file.save(file_path)
+        plugin_name = filename[:-3]  # Remove .cs extension
+        
+        return jsonify({
+            'message': 'Plugin uploaded successfully',
+            'plugin': {
+                'name': plugin_name,
+                'active': False,
+                'hasConfig': False,
+                'hasData': False,
+                'hasLang': False
+            }
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/plugins/<plugin_name>/<file_type>')
+def get_plugin_content(plugin_name, file_type):
+    """Get content of a specific plugin file"""
+    try:
+        base_path = os.path.join(os.path.expanduser('~'), 'HopHopBuildServer')
+        file_paths = {
+            'code': os.path.join(base_path, 'src/hophop/rust_server/scripts', f'{plugin_name}.cs'),
+            'config': os.path.join(base_path, 'rust_server/carbon/configs', f'{plugin_name}.json'),
+            'data': os.path.join(base_path, 'rust_server/carbon/data', f'{plugin_name}.json'),
+            'lang': os.path.join(base_path, 'rust_server/carbon/lang/en', f'{plugin_name}.json')
+        }
+
+        if file_type not in file_paths:
+            return jsonify({'error': 'Invalid file type'}), 400
+
+        file_path = file_paths[file_type]
+        try:
+            with open(file_path, 'r') as f:
+                content = f.read()
+            return jsonify({'content': content})
+        except FileNotFoundError:
+            # Return empty content if file doesn't exist
+            if file_type in ['config', 'data', 'lang']:
+                return jsonify({'content': '{}\n'})  # Default JSON content
+            return jsonify({'content': ''})  # Empty content for code files
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

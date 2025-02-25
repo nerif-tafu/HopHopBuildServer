@@ -163,6 +163,7 @@ def start_rust_server():
         SERVER_RCON_PORT = get_env_int('SERVER_RCON_PORT', 28017)
         SERVER_RCON_PASS = get_env_str('SERVER_RCON_PASS', 'avoid-unelected-thee')
         SERVER_MAX_PLAYERS = get_env_int('SERVER_MAX_PLAYERS', 8)
+        SERVER_LEVEL_URL = get_env_str('SERVER_LEVEL_URL', '')
         RUST_BRANCH = get_env_str('RUST_BRANCH', 'master')
 
         base_install()
@@ -242,6 +243,10 @@ def start_rust_server():
             "+server.maxplayers", str(SERVER_MAX_PLAYERS),
             "+app.port", "1-"
         ]
+
+        # Add level URL if provided
+        if SERVER_LEVEL_URL:
+            command.extend(["+server.levelurl", SERVER_LEVEL_URL])
 
         print("Starting Rust server...")
         

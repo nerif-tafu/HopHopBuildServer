@@ -40,4 +40,4 @@ def update_config():
         for key, value in new_config.items():
             f.write(f"{key}={value}\n")
     
-    return jsonify({'status': 'success'}) 
+    return jsonify({'status': 'success'})

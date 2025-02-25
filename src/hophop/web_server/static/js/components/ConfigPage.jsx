@@ -103,19 +103,45 @@ const ConfigPage = () => {
         );
     };
 
-    const renderConfigSection = () => (
-        <div className="bg-surface-light rounded-lg p-4 mb-4">
-            <h3 className="text-lg text-chardonnay-500 mb-4">Configuration</h3>
-            <div className="grid gap-4">
-                {Object.entries(config.defaults).map(([key, defaultValue]) => (
-                    <div key={key} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
-                        <label className="text-neutral-600 font-medium">{key}</label>
-                        {renderConfigField(key, defaultValue)}
-                    </div>
-                ))}
+    const renderConfigSection = () => {
+        if (config.loading) return <div>Loading...</div>;
+        if (config.error) return <div className="text-red-500">{config.error}</div>;
+
+        const renderField = (key) => {
+            const isOptional = window.configValidation[key] && window.configValidation[key].optional;
+            return (
+                <div key={key} className="mb-4">
+                    <label className="block text-sm font-medium mb-1">
+                        {key.replace(/_/g, ' ')}
+                        {isOptional && (
+                            <span className="ml-2 text-neutral-400 font-normal">
+                                (Optional)
+                            </span>
+                        )}
+                    </label>
+                    <input
+                        type="text"
+                        value={config.current[key] || ''}
+                        onChange={(e) => handleConfigChange(key, e.target.value)}
+                        className={`w-full p-2 rounded border ${
+                            errors[key] 
+                                ? 'border-red-500 focus:ring-red-500' 
+                                : 'border-surface-lighter focus:ring-chardonnay-500'
+                        } focus:outline-none focus:ring-2`}
+                    />
+                    {errors[key] && (
+                        <p className="mt-1 text-sm text-red-500">{errors[key]}</p>
+                    )}
+                </div>
+            );
+        };
+
+        return (
+            <div className="bg-surface rounded-lg p-4">
+                {Object.keys(config.current).map(renderField)}
             </div>
-        </div>
-    );
+        );
+    };
 
     const handleConfigChange = (key, value) => {
         // For number fields, convert string to number for validation

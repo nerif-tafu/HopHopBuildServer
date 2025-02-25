@@ -95,6 +95,18 @@ const configValidation = {
             if (players > 500) return 'Max players cannot exceed 500';
             return null;
         }
+    },
+    SERVER_LEVEL_URL: {
+        optional: true,
+        validate: (value) => {
+            if (!value) return null;
+            try {
+                new URL(value);
+                return null;
+            } catch (error) {
+                return 'Must be a valid URL';
+            }
+        }
     }
 };
 
