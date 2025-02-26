@@ -110,8 +110,8 @@ def base_install():
     beta_branch = RUST_BRANCH if RUST_BRANCH in ['staging', 'aux01', 'aux02', 'aux03', 'edge', 'preview'] else None
 
     # Update app with specified branch
-    print(f"Installing Rust server ({RUST_BRANCH} branch)")
     if beta_branch:
+        print(f"Installing Rust server ({RUST_BRANCH} branch)")
         s.app_update(
             RUST_ID,
             PATH_RUST_SERVER,
@@ -119,6 +119,7 @@ def base_install():
             beta=beta_branch
         )
     else:
+        print(f"Installing Rust server with no branch")
         s.app_update(
             RUST_ID,
             PATH_RUST_SERVER,
@@ -127,17 +128,30 @@ def base_install():
 
     # Install Carbon modding framework
     try:
+        # Clean up old Carbon installation
+        carbon_path = os.path.join(PATH_RUST_SERVER, "carbon")
+        carbon_download = os.path.join(PATH_TMP, "carbon.tar.gz")
+        
+        print("Cleaning up old Carbon installation...")
+        if os.path.exists(carbon_path):
+            shutil.rmtree(carbon_path)
+        if os.path.exists(carbon_download):
+            os.remove(carbon_download)
+
+        # Download and install new Carbon
         download_url = get_carbon_url(RUST_BRANCH)
+        print(f"Downloading Carbon ({RUST_BRANCH} branch)")
         response = requests.get(download_url)
         response.raise_for_status()
 
-        with open(os.path.join(PATH_TMP, "carbon.tar.gz"), "wb") as f:
+        with open(carbon_download, "wb") as f:
             f.write(response.content)
 
         # Extracting and installing Carbon
         print(f"Extracting and installing Carbon ({RUST_BRANCH} branch)")
-        with tarfile.open(os.path.join(PATH_TMP, "carbon.tar.gz"), "r:gz") as tar_ref:
+        with tarfile.open(carbon_download, "r:gz") as tar_ref:
             tar_ref.extractall(PATH_RUST_SERVER)
+        print("Carbon installation temporarily disabled")
     except Exception as e:
         print("Error occurred during Carbon update:", e)
 
