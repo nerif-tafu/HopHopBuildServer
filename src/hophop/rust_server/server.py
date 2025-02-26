@@ -105,12 +105,27 @@ def base_install():
     except SteamCMDException:
         print("Already installed, try to use the --force option to force installation")
 
-    s.app_update(RUST_ID,PATH_RUST_SERVER,validate=True)
-
-    # Get the branch from environment
+    # Get the branch from environment and determine if it's a beta branch
     RUST_BRANCH = get_env_str('RUST_BRANCH', 'master')
+    beta_branch = RUST_BRANCH if RUST_BRANCH in ['staging', 'aux01', 'aux02', 'aux03', 'edge', 'preview'] else None
 
-    # Install Carbon modding framework with appropriate version
+    # Update app with specified branch
+    print(f"Installing Rust server ({RUST_BRANCH} branch)")
+    if beta_branch:
+        s.app_update(
+            RUST_ID,
+            PATH_RUST_SERVER,
+            validate=True,
+            beta=beta_branch
+        )
+    else:
+        s.app_update(
+            RUST_ID,
+            PATH_RUST_SERVER,
+            validate=True
+        )
+
+    # Install Carbon modding framework
     try:
         download_url = get_carbon_url(RUST_BRANCH)
         response = requests.get(download_url)
@@ -125,31 +140,6 @@ def base_install():
             tar_ref.extractall(PATH_RUST_SERVER)
     except Exception as e:
         print("Error occurred during Carbon update:", e)
-
-    # Delete all scripts in PATH_RUST_PLUGINS
-    print("Removing old Carbon plugins.")
-    for item in os.listdir(PATH_RUST_PLUGINS):
-        item_path = os.path.join(PATH_RUST_PLUGINS, item)
-        try:
-            if os.path.isdir(item_path):
-                shutil.rmtree(item_path)
-            else:
-                os.remove(item_path)
-        except Exception as e:
-            print(f"Error occurred while deleting {item_path}: {e}")
-
-    # Install all scripts from PATH_SCRIPTS.
-    print("Installing new Carbon plugins.")
-    for item in os.listdir(PATH_SCRIPTS):
-        s = os.path.join(PATH_SCRIPTS, item)
-        d = os.path.join(PATH_RUST_PLUGINS, item)
-        try:
-            if os.path.isdir(s):
-                shutil.copytree(s, d, dirs_exist_ok=True)
-            else:
-                shutil.copy2(s, d)
-        except Exception as e:
-            print(f"Error occurred while copying {s} to {d}: {e}")
 
 def start_rust_server():
     """Main entry point for the rust server"""
@@ -166,29 +156,9 @@ def start_rust_server():
         SERVER_LEVEL_URL = get_env_str('SERVER_LEVEL_URL', '')
         RUST_BRANCH = get_env_str('RUST_BRANCH', 'master')
 
+        # Run base installation
         base_install()
         
-        # Update/Install Rust server with appropriate branch
-        s = SteamCMD("steam_cmd")
-        try:
-            s.install()
-        except SteamCMDException:
-            print("Already installed, try to use the --force option to force installation")
-
-        # Set beta branch if not master
-        beta_branch = None
-        if RUST_BRANCH in ['staging', 'aux01', 'aux02', 'aux03', 'edge', 'preview']:
-            beta_branch = RUST_BRANCH
-        
-        # Update app with specified branch
-        print(f"Installing Rust server ({RUST_BRANCH} branch)")
-        s.app_update(
-            RUST_ID,
-            PATH_RUST_SERVER,
-            validate=True,
-            beta=beta_branch
-        )
-
         # Define the list of users
         users = [
             "ownerid 76561198183150138 \"Clayton (Rust)\"",
@@ -219,6 +189,7 @@ def start_rust_server():
         # Changing directory
         os.chdir(PATH_RUST_SERVER)
         
+        # Set environment variables
         os.environ["TERM"] = "xterm"
         os.environ["DOORSTOP_ENABLED"] = "1"
         os.environ["DOORSTOP_TARGET_ASSEMBLY"] = os.path.join(PATH_RUST_SERVER, "carbon/managed/Carbon.Preloader.dll")
