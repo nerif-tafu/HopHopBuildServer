@@ -120,6 +120,21 @@ namespace Carbon.Plugins
 
         private BoxData _data;
 
+        // Add these classes for JSON structure
+        private class DebugItemInfo
+        {
+            public string ItemID { get; set; }
+            public string ItemName { get; set; }
+        }
+
+        private class DebugCategoryInfo
+        {
+            public string Category { get; set; }
+            public List<DebugItemInfo> ItemIDs { get; set; }
+        }
+
+        private List<DebugCategoryInfo> _debugData;
+
         private void LoadData()
         {
             _data = Interface.Oxide.DataFileSystem.ReadObject<BoxData>("fill_box") ?? new BoxData();
@@ -130,9 +145,20 @@ namespace Carbon.Plugins
             Interface.Oxide.DataFileSystem.WriteObject("fill_box", _data);
         }
 
+        private void LoadDebugData()
+        {
+            _debugData = Interface.Oxide.DataFileSystem.ReadObject<List<DebugCategoryInfo>>("fill_box_debug") ?? new List<DebugCategoryInfo>();
+        }
+
+        private void SaveDebugData()
+        {
+            Interface.Oxide.DataFileSystem.WriteObject("fill_box_debug", _debugData);
+        }
+
         private void OnServerInitialized()
         {
             LoadData();
+            LoadDebugData();
             
             // Cache all item definitions that are obtainable
             _allDefinitions = ItemManager.itemList
@@ -261,7 +287,7 @@ namespace Carbon.Plugins
         {
             if (args.Length == 0)
             {
-                SendReply(player, $"Usage: /box {UI.Colors.FormatCommand("clear")}|{UI.Colors.FormatCommand("random")}|{UI.Colors.FormatCommand("category")}|{UI.Colors.FormatCommand("bulk")} [category] [--always]");
+                SendReply(player, $"Usage: /box {UI.Colors.FormatCommand("clear")}|{UI.Colors.FormatCommand("random")}|{UI.Colors.FormatCommand("category")}|{UI.Colors.FormatCommand("bulk")}|{UI.Colors.FormatCommand("debug")}|{UI.Colors.FormatCommand("skin")}|{UI.Colors.FormatCommand("everything")} [category] [--always]");
                 SendReply(player, $"Use {UI.Colors.FormatCommand("/box stop")} to disable always mode");
                 return;
             }
@@ -271,39 +297,90 @@ namespace Carbon.Plugins
             bool isAlways = args.Any(arg => 
                 validFlags.Any(flag => flag.StartsWith(arg, StringComparison.OrdinalIgnoreCase)));
 
-            var validCommands = new[] { "clear", "random", "category", "stop", "bulk" };
+            var validCommands = new[] { "clear", "random", "category", "stop", "bulk", "debug", "skin", "everything" };
             var (action, ambiguousCommands) = MatchCommand(args[0], validCommands);
+
+            // Add skin command handling
+            if (action == "skin")
+            {
+                HandleSkinCommand(player, args);
+                return;
+            }
+
+            // Add debug command handling
+            if (action == "debug")
+            {
+                if (args.Length < 2)
+                {
+                    SendReply(player, $"Usage: /box debug {UI.Colors.FormatCommand("<category_name>")}");
+                    SendReply(player, "Example: /box debug \"High Grade Weapons\"");
+                    return;
+                }
+
+                // Get the category name from all remaining args to support spaces
+                string categoryName = string.Join(" ", args.Skip(1));
+
+                // Get all items from all player inventories
+                var items = new List<DebugItemInfo>();
+                
+                // Check main inventory
+                foreach (var item in player.inventory.containerMain.itemList)
+                {
+                    items.Add(new DebugItemInfo 
+                    { 
+                        ItemID = item.info.itemid.ToString(),
+                        ItemName = item.info.displayName.english
+                    });
+                }
+
+                // Check belt
+                foreach (var item in player.inventory.containerBelt.itemList)
+                {
+                    items.Add(new DebugItemInfo 
+                    { 
+                        ItemID = item.info.itemid.ToString(),
+                        ItemName = item.info.displayName.english
+                    });
+                }
+
+                // Check wear
+                foreach (var item in player.inventory.containerWear.itemList)
+                {
+                    items.Add(new DebugItemInfo 
+                    { 
+                        ItemID = item.info.itemid.ToString(),
+                        ItemName = item.info.displayName.english
+                    });
+                }
+
+                // Remove existing category data if it exists
+                _debugData.RemoveAll(d => d.Category == categoryName);
+
+                // Add new category data
+                _debugData.Add(new DebugCategoryInfo 
+                { 
+                    Category = categoryName,
+                    ItemIDs = items
+                });
+
+                SaveDebugData();
+
+                SendReply(player, UI.Colors.FormatSuccess($"Saved {items.Count} items under category '{categoryName}' to debug data."));
+                return;
+            }
 
             // Handle bulk mode
             if (action == "bulk")
             {
-                if (_selectedBoxes.ContainsKey(player))
-                {
-                    // Exit bulk mode
-                    var selected = _selectedBoxes[player];
-                    _selectedBoxes.Remove(player);
+                HandleBulkMode(player);
+                return;
+            }
 
-                    // Clean up indicators
-                    foreach (var selectedContainer in selected)
-                    {
-                        if (_selectionIndicators.TryGetValue(selectedContainer, out var indicator))
-                        {
-                            indicator.Kill();
-                            _selectionIndicators.Remove(selectedContainer);
-                        }
-                    }
-
-                    SendReply(player, UI.Colors.FormatSuccess($"Exited bulk mode. Selected {selected.Count} boxes."));
-                    return;
-                }
-                else
-                {
-                    // Enter bulk mode
-                    _selectedBoxes[player] = new HashSet<StorageContainer>();
-                    SendReply(player, UI.Colors.FormatSuccess("Entered bulk mode. Left click boxes to select/deselect them."));
-                    SendReply(player, "Run /box bulk again when done selecting.");
-                    return;
-                }
+            // Handle everything command
+            if (action == "everything")
+            {
+                HandleEverythingCommand(player);
+                return;
             }
 
             // Handle bulk operations
@@ -878,6 +955,25 @@ namespace Carbon.Plugins
                                 indicator.Kill();
                                 _selectionIndicators.Remove(container);
                             }
+
+                            // Show updated selection count if in everything mode
+                            if (selected.Count > 0)
+                            {
+                                int totalItems = _allDefinitions.Length;
+                                int itemsPerBox = 48;
+                                int boxesNeeded = (int)Math.Ceiling((double)totalItems / itemsPerBox);
+                                int totalSlotsNeeded = totalItems;
+                                int selectedSlots = selected.Count * itemsPerBox;
+
+                                if (boxesNeeded > selected.Count)
+                                {
+                                    SendReply(player, UI.Colors.FormatError($"Need {boxesNeeded - selected.Count} more boxes ({totalSlotsNeeded - selectedSlots} more slots) to store all items."));
+                                }
+                                else
+                                {
+                                    SendReply(player, UI.Colors.FormatSuccess($"Selected {selected.Count} boxes ({selectedSlots} slots). Ready to distribute items!"));
+                                }
+                            }
                         }
                         else
                         {
@@ -894,6 +990,22 @@ namespace Carbon.Plugins
                                 indicator.Spawn();
                                 indicator.SetFlag(BaseEntity.Flags.Locked, true);
                                 _selectionIndicators[container] = indicator;
+                            }
+
+                            // Show updated selection count if in everything mode
+                            int totalItems = _allDefinitions.Length;
+                            int itemsPerBox = 30;
+                            int boxesNeeded = (int)Math.Ceiling((double)totalItems / itemsPerBox);
+                            int totalSlotsNeeded = totalItems;
+                            int selectedSlots = selected.Count * itemsPerBox;
+
+                            if (boxesNeeded > selected.Count)
+                            {
+                                SendReply(player, UI.Colors.FormatError($"Need {boxesNeeded - selected.Count} more boxes ({totalSlotsNeeded - selectedSlots} more slots) to store all items."));
+                            }
+                            else
+                            {
+                                SendReply(player, UI.Colors.FormatSuccess($"Selected {selected.Count} boxes ({selectedSlots} slots). Ready to distribute items!"));
                             }
                         }
                     }
@@ -1016,6 +1128,175 @@ namespace Carbon.Plugins
                         FillContainerCategory(targetContainer, categoryMatch);
                     }
                     break;
+            }
+        }
+
+        private void HandleBulkMode(BasePlayer player)
+        {
+            if (_selectedBoxes.ContainsKey(player))
+            {
+                // Exit bulk mode
+                var selected = _selectedBoxes[player];
+                _selectedBoxes.Remove(player);
+
+                // Clean up indicators
+                foreach (var selectedContainer in selected)
+                {
+                    if (_selectionIndicators.TryGetValue(selectedContainer, out var indicator))
+                    {
+                        indicator.Kill();
+                        _selectionIndicators.Remove(selectedContainer);
+                    }
+                }
+
+                SendReply(player, UI.Colors.FormatSuccess($"Exited bulk mode. Selected {selected.Count} boxes."));
+                return;
+            }
+            else
+            {
+                // Enter bulk mode
+                _selectedBoxes[player] = new HashSet<StorageContainer>();
+                SendReply(player, UI.Colors.FormatSuccess("Entered bulk mode. Left click boxes to select/deselect them."));
+                SendReply(player, "Run /box bulk again when done selecting.");
+                return;
+            }
+        }
+
+        private void HandleSkinCommand(BasePlayer player, string[] args)
+        {
+            if (args.Length < 2)
+            {
+                SendReply(player, $"Usage: /box skin {UI.Colors.FormatCommand("<skin_name>")}");
+                SendReply(player, "Available skins:\n" + 
+                    string.Join("\n", _skins.Select(s => UI.Colors.FormatInput(s.Name))));
+                return;
+            }
+
+            var targetContainer = GetLookingAtContainer(player);
+            if (targetContainer == null)
+            {
+                SendReply(player, $"{UI.Colors.FormatError("Error:")} You must be looking at a container!");
+                return;
+            }
+
+            if (targetContainer.ShortPrefabName != "box.wooden.large")
+            {
+                SendReply(player, $"{UI.Colors.FormatError("Error:")} Skins can only be applied to large wooden boxes!");
+                return;
+            }
+
+            // Get the skin name from all remaining args to support spaces
+            string skinName = string.Join(" ", args.Skip(1));
+
+            // Match skin name using our partial matching logic
+            var (skinMatch, ambiguousSkins) = MatchCommand(
+                skinName, 
+                _skins.Select(s => s.Name)
+            );
+
+            if (skinMatch == null)
+            {
+                if (ambiguousSkins?.Count > 0)
+                {
+                    SendReply(player, $"{UI.Colors.FormatError("Ambiguous skin name '")}"+
+                        $"{UI.Colors.FormatInput(skinName)}{UI.Colors.FormatError("'. Could match: ")}" +
+                        string.Join(", ", ambiguousSkins.Select(s => UI.Colors.FormatInput(s))));
+                }
+                else
+                {
+                    SendReply(player, $"{UI.Colors.FormatError("Invalid skin name!")} Available:\n" +
+                        string.Join("\n", _skins.Select(s => UI.Colors.FormatInput(s.Name))));
+                }
+                return;
+            }
+
+            // Find and apply the skin
+            var skin = _skins.FirstOrDefault(s => s.Name == skinMatch);
+            if (skin != null)
+            {
+                targetContainer.skinID = skin.WorkshopId;
+                targetContainer.SendNetworkUpdate();
+                SendReply(player, UI.Colors.FormatSuccess($"Applied skin: {skin.Name}"));
+            }
+        }
+
+        private void HandleEverythingCommand(BasePlayer player)
+        {
+            // Calculate total items
+            int totalItems = _allDefinitions.Length;
+
+            if (_selectedBoxes.ContainsKey(player))
+            {
+                var selectedBoxes = _selectedBoxes[player];
+                
+                // Calculate total available slots
+                int totalAvailableSlots = selectedBoxes.Sum(container => container.inventory.capacity);
+                
+                // Check if we have enough slots
+                if (totalAvailableSlots < totalItems)
+                {
+                    int slotsNeeded = totalItems - totalAvailableSlots;
+                    SendReply(player, $"{UI.Colors.FormatError("Error:")} Need {slotsNeeded} more slots to store all items!");
+                    SendReply(player, $"Current capacity: {totalAvailableSlots} slots, Need: {totalItems} slots");
+                    return;
+                }
+
+                // Convert to list to maintain order
+                var boxList = selectedBoxes.ToList();
+                int currentBox = 0;
+                int currentSlot = 0;
+
+                // Distribute items across boxes
+                foreach (var itemDef in _allDefinitions)
+                {
+                    if (currentBox >= boxList.Count) break;
+
+                    var container = boxList[currentBox];
+                    var item = ItemManager.CreateByName(itemDef.shortname, 1);
+                    if (item != null)
+                    {
+                        // Move to next box if current is full
+                        if (currentSlot >= container.inventory.capacity)
+                        {
+                            currentBox++;
+                            currentSlot = 0;
+                            if (currentBox >= boxList.Count) break;
+                            container = boxList[currentBox];
+                        }
+
+                        if (!item.MoveToContainer(container.inventory))
+                        {
+                            item.Remove();
+                        }
+                        else
+                        {
+                            currentSlot++;
+                        }
+                    }
+                }
+
+                // Clean up selection
+                _selectedBoxes.Remove(player);
+                foreach (var container in selectedBoxes)
+                {
+                    if (_selectionIndicators.TryGetValue(container, out var indicator))
+                    {
+                        indicator.Kill();
+                        _selectionIndicators.Remove(container);
+                    }
+                }
+
+                SendReply(player, UI.Colors.FormatSuccess($"Distributed {totalItems} items across {currentBox + 1} boxes!"));
+                return;
+            }
+            else
+            {
+                // Enter selection mode
+                _selectedBoxes[player] = new HashSet<StorageContainer>();
+                SendReply(player, UI.Colors.FormatSuccess($"Please select boxes to store {totalItems} items."));
+                SendReply(player, "Left click boxes to select/deselect them.");
+                SendReply(player, "Run /box everything again when done selecting.");
+                return;
             }
         }
     }
