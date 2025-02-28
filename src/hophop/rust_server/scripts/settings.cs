@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Carbon.Core;
+using Oxide.Core;
 using Oxide.Game.Rust.Libraries;
 using UnityEngine;
 
@@ -107,38 +108,42 @@ namespace Carbon.Plugins
                 {
                     if (enabled)
                     {
-                        // Set power for input and mark dirty
-                        ioEntity.SetFlag(BaseEntity.Flags.Reserved8, true); // Power flag
+                        // Set power flags
+                        ioEntity.SetFlag(BaseEntity.Flags.Reserved8, true);
                         ioEntity.SetFlag(IOEntity.Flag_HasPower, true);
-                        foreach (var input in ioEntity.inputs)
-                        {
-                            input.value = 100; // Maximum power
-                        }
-                        ioEntity.MarkDirty();
                         
-                        // Some entities need extra handling
+                        // Set power directly
+                        ioEntity.currentEnergy = (int)100f;
+                        ioEntity.SetFlag(IOEntity.Flag_HasPower, true);
+                        
+                        // Handle special cases
                         var autoTurret = ioEntity as AutoTurret;
                         if (autoTurret != null)
                         {
                             autoTurret.SetFlag(AutoTurret.Flag_HasPower, true);
                         }
+
+                        // Update clients
+                        ioEntity.MarkDirty();
+                        ioEntity.SendNetworkUpdate();
                     }
                     else
                     {
                         // Remove power
                         ioEntity.SetFlag(BaseEntity.Flags.Reserved8, false);
                         ioEntity.SetFlag(IOEntity.Flag_HasPower, false);
-                        foreach (var input in ioEntity.inputs)
-                        {
-                            input.value = 0;
-                        }
-                        ioEntity.MarkDirty();
-
+                        ioEntity.currentEnergy = 0;
+                        
+                        // Handle special cases
                         var autoTurret = ioEntity as AutoTurret;
                         if (autoTurret != null)
                         {
                             autoTurret.SetFlag(AutoTurret.Flag_HasPower, false);
                         }
+
+                        // Update clients
+                        ioEntity.MarkDirty();
+                        ioEntity.SendNetworkUpdate();
                     }
                 }
             }

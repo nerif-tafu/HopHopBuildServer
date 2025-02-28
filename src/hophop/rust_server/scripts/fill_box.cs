@@ -123,8 +123,13 @@ namespace Carbon.Plugins
         // Add these classes for JSON structure
         private class DebugItemInfo
         {
-            public string ItemID { get; set; }
-            public string ItemName { get; set; }
+            public string TargetCategory { get; set; }
+            public int MaxAmountInOutput { get; set; }
+            public int BufferAmount { get; set; }
+            public int MinAmountInInput { get; set; }
+            public bool IsBlueprint { get; set; }
+            public int BufferTransferRemaining { get; set; }
+            public string TargetItemName { get; set; }
         }
 
         private class DebugCategoryInfo
@@ -310,62 +315,7 @@ namespace Carbon.Plugins
             // Add debug command handling
             if (action == "debug")
             {
-                if (args.Length < 2)
-                {
-                    SendReply(player, $"Usage: /box debug {UI.Colors.FormatCommand("<category_name>")}");
-                    SendReply(player, "Example: /box debug \"High Grade Weapons\"");
-                    return;
-                }
-
-                // Get the category name from all remaining args to support spaces
-                string categoryName = string.Join(" ", args.Skip(1));
-
-                // Get all items from all player inventories
-                var items = new List<DebugItemInfo>();
-                
-                // Check main inventory
-                foreach (var item in player.inventory.containerMain.itemList)
-                {
-                    items.Add(new DebugItemInfo 
-                    { 
-                        ItemID = item.info.itemid.ToString(),
-                        ItemName = item.info.displayName.english
-                    });
-                }
-
-                // Check belt
-                foreach (var item in player.inventory.containerBelt.itemList)
-                {
-                    items.Add(new DebugItemInfo 
-                    { 
-                        ItemID = item.info.itemid.ToString(),
-                        ItemName = item.info.displayName.english
-                    });
-                }
-
-                // Check wear
-                foreach (var item in player.inventory.containerWear.itemList)
-                {
-                    items.Add(new DebugItemInfo 
-                    { 
-                        ItemID = item.info.itemid.ToString(),
-                        ItemName = item.info.displayName.english
-                    });
-                }
-
-                // Remove existing category data if it exists
-                _debugData.RemoveAll(d => d.Category == categoryName);
-
-                // Add new category data
-                _debugData.Add(new DebugCategoryInfo 
-                { 
-                    Category = categoryName,
-                    ItemIDs = items
-                });
-
-                SaveDebugData();
-
-                SendReply(player, UI.Colors.FormatSuccess($"Saved {items.Count} items under category '{categoryName}' to debug data."));
+                HandleDebugCommand(player, args);
                 return;
             }
 
@@ -1298,6 +1248,57 @@ namespace Carbon.Plugins
                 SendReply(player, "Run /box everything again when done selecting.");
                 return;
             }
+        }
+
+        private void HandleDebugCommand(BasePlayer player, string[] args)
+        {
+            if (args.Length < 2)
+            {
+                SendReply(player, $"Usage: /box debug {UI.Colors.FormatCommand("<category_name>")}");
+                SendReply(player, "Example: /box debug \"High Grade Weapons\"");
+                return;
+            }
+
+            var targetContainer = GetLookingAtContainer(player);
+            if (targetContainer == null)
+            {
+                SendReply(player, $"{UI.Colors.FormatError("Error:")} You must be looking at a container!");
+                return;
+            }
+
+            // Get the category name from all remaining args to support spaces
+            string categoryName = string.Join(" ", args.Skip(1));
+
+            // Get all items from the container
+            var items = new List<DebugItemInfo>();
+            
+            foreach (var item in targetContainer.inventory.itemList)
+            {
+                items.Add(new DebugItemInfo 
+                { 
+                    TargetCategory = null,
+                    MaxAmountInOutput = 0,
+                    BufferAmount = 0,
+                    MinAmountInInput = 0,
+                    IsBlueprint = false,
+                    BufferTransferRemaining = 0,
+                    TargetItemName = item.info.shortname
+                });
+            }
+
+            // Remove existing category data if it exists
+            _debugData.RemoveAll(d => d.Category == categoryName);
+
+            // Add new category data
+            _debugData.Add(new DebugCategoryInfo 
+            { 
+                Category = categoryName,
+                ItemIDs = items
+            });
+
+            SaveDebugData();
+
+            SendReply(player, UI.Colors.FormatSuccess($"Saved {items.Count} items from container under category '{categoryName}' to debug data."));
         }
     }
 }
