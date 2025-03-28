@@ -107,6 +107,36 @@ const configValidation = {
                 return 'Must be a valid URL';
             }
         }
+    },
+    APP_PORT: {
+        validate: (value) => {
+            if (!value) return 'App port is required';
+            const port = Number(value);
+            if (isNaN(port)) return 'Must be a number';
+            if (port < 1024) return 'Port must be >= 1024';
+            if (port > 65535) return 'Port must be <= 65535';
+            return null;
+        }
+    },
+    APP_LISTENIP: {
+        optional: true,
+        validate: (value) => {
+            if (!value) return null;
+            // Basic IP address validation
+            const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
+            if (!ipRegex.test(value)) return 'Must be a valid IP address';
+            return null;
+        }
+    },
+    APP_PUBLICIP: {
+        optional: true,
+        validate: (value) => {
+            if (!value) return null;
+            // Basic IP address validation
+            const ipRegex = /^(\d{1,3}\.){3}\d{1,3}$/;
+            if (!ipRegex.test(value)) return 'Must be a valid IP address';
+            return null;
+        }
     }
 };
 

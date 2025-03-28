@@ -168,6 +168,9 @@ def start_rust_server():
         SERVER_RCON_PASS = get_env_str('SERVER_RCON_PASS', 'avoid-unelected-thee')
         SERVER_MAX_PLAYERS = get_env_int('SERVER_MAX_PLAYERS', 8)
         SERVER_LEVEL_URL = get_env_str('SERVER_LEVEL_URL', '')
+        APP_PORT = get_env_int('APP_PORT', 28082)
+        APP_LISTENIP = get_env_str('APP_LISTENIP', '')
+        APP_PUBLICIP = get_env_str('APP_PUBLICIP', '')
         RUST_BRANCH = get_env_str('RUST_BRANCH', 'master')
 
         # Run base installation
@@ -226,8 +229,14 @@ def start_rust_server():
             "+rcon.password", SERVER_RCON_PASS,
             "+rcon.web", "true",
             "+server.maxplayers", str(SERVER_MAX_PLAYERS),
-            "+app.port", "1-"
+            "+app.port", str(APP_PORT)
         ]
+
+        # Add IP configurations if provided
+        if APP_LISTENIP:
+            command.extend(["+app.listenip", APP_LISTENIP])
+        if APP_PUBLICIP:
+            command.extend(["+app.publicip", APP_PUBLICIP])
 
         # Add level URL if provided
         if SERVER_LEVEL_URL:

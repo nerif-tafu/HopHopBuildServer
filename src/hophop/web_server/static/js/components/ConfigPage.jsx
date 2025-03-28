@@ -104,7 +104,7 @@ const ConfigPage = () => {
     const renderConfigSection = () => {
         if (config.loading) {
             return (
-                <div className="p-4 text-center text-neutral-500">
+                <div className="text-center text-neutral-500">
                     Loading configuration...
                 </div>
             );
@@ -112,51 +112,50 @@ const ConfigPage = () => {
 
         if (config.error) {
             return (
-                <div className="p-4 text-status-error">
+                <div className="text-status-error">
                     {config.error}
                 </div>
             );
         }
 
         return (
-            <div className="h-full flex flex-col">
-                <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-neutral-600 
-                    scrollbar-track-neutral-800 hover:scrollbar-thumb-neutral-500">
-                    <div className="space-y-3">
-                        {Object.keys(config.defaults).map(key => {
-                            const defaultValue = config.defaults[key] || '';
-                            const currentValue = config.current[key] || '';
-                            const error = errors[key];
-                            
-                            return (
-                                <div key={key} 
-                                    className="flex flex-col md:flex-row md:items-center p-4 bg-surface 
-                                        rounded-lg border border-surface-lighter"
-                                >
-                                    <label className="mb-2 md:mb-0 md:w-1/3 text-primary font-medium">
-                                        {key}
-                                    </label>
-                                    <div className="w-full md:w-2/3">
-                                        {renderConfigField(key)}
-                                        {error && <p className="mt-1 text-sm text-status-error">{error}</p>}
-                                        {defaultValue !== currentValue && (
-                                            <p className="mt-1 text-sm text-neutral-500">
-                                                Default: {defaultValue}
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </div>
+            <div className="space-y-3">
+                {Object.keys(config.defaults).map(key => {
+                    const defaultValue = config.defaults[key] || '';
+                    const currentValue = config.current[key] || '';
+                    const error = errors[key];
+                    const isRequired = !window.configValidation[key] || !window.configValidation[key].optional;
+                    
+                    return (
+                        <div key={key} 
+                            className="flex flex-col md:flex-row md:items-stretch p-4 bg-surface 
+                                rounded-lg border border-surface-lighter relative"
+                        >
+                            <label className="mb-2 md:mb-0 md:w-1/3 text-primary font-medium flex items-center gap-2">
+                                <div className={`absolute left-0 top-0 bottom-0 w-0.5 
+                                    ${isRequired ? 'bg-status-error' : 'bg-transparent'}`} 
+                                />
+                                {key}
+                            </label>
+                            <div className="w-full md:w-2/3">
+                                {renderConfigField(key)}
+                                {error && <p className="mt-1 text-sm text-status-error">{error}</p>}
+                                {defaultValue !== currentValue && (
+                                    <p className="mt-1 text-sm text-neutral-500">
+                                        Default: {defaultValue || 'None'}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })}
             </div>
         );
     };
 
     const handleConfigChange = (key, value) => {
         // For number fields, convert string to number for validation
-        const processedValue = ['SERVER_PORT', 'SERVER_RCON_PORT', 'SERVER_SEED', 'SERVER_WORLDSIZE', 'SERVER_MAXPLAYERS']
+        const processedValue = ['SERVER_PORT', 'SERVER_RCON_PORT', 'SERVER_SEED', 'SERVER_WORLDSIZE', 'SERVER_MAXPLAYERS', 'APP_PORT']
             .includes(key) ? Number(value) : value;
 
         validateField(key, processedValue);
@@ -234,6 +233,82 @@ const ConfigPage = () => {
         }
     };
 
+    const handleExport = () => {
+        try {
+            const configData = JSON.stringify(config.current, null, 2);
+            const blob = new Blob([configData], { type: 'application/json' });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'rust-server-config.json';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            showToast('Failed to export configuration', 'error');
+        }
+    };
+
+    const handleImport = () => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'application/json';
+        
+        input.onchange = async (e) => {
+            try {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        const importedConfig = JSON.parse(e.target.result);
+                        
+                        // Validate all fields in imported config
+                        const errors = {};
+                        Object.entries(importedConfig).forEach(([key, value]) => {
+                            if (window.configValidation[key]) {
+                                const error = window.configValidation[key].validate(value);
+                                if (error) errors[key] = error;
+                            }
+                        });
+
+                        if (Object.keys(errors).length > 0) {
+                            showToast('Invalid configuration in imported file', 'error');
+                            return;
+                        }
+
+                        setConfig(prev => ({
+                            ...prev,
+                            current: importedConfig
+                        }));
+                        setHasChanges(true);
+                        showToast('Configuration imported successfully', 'success');
+                    } catch (error) {
+                        showToast('Failed to parse imported configuration', 'error');
+                    }
+                };
+                reader.readAsText(file);
+            } catch (error) {
+                showToast('Failed to import configuration', 'error');
+            }
+        };
+
+        input.click();
+    };
+
+    const handleReset = () => {
+        if (window.confirm('Are you sure you want to reset all settings to their default values?')) {
+            setConfig(prev => ({
+                ...prev,
+                current: { ...prev.defaults }
+            }));
+            setHasChanges(true);
+            showToast('Configuration reset to defaults', 'success');
+        }
+    };
+
     if (config.loading) {
         return (
             <div className="h-full flex flex-col">
@@ -270,18 +345,59 @@ const ConfigPage = () => {
                 <h2 className="text-xl text-primary">Server Configuration</h2>
             </div>
             <div className="flex-1 min-h-0">
-                <div className="bg-surface-light rounded-lg p-4 h-full flex flex-col">
-                    {renderConfigSection()}
+                <div className="bg-surface-light rounded-lg p-2 sm:p-4 h-full flex flex-col">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-surface rounded-lg 
+                        border border-surface-lighter gap-4">
+                        <h3 className="text-lg text-primary flex items-center gap-2">
+                            <i className="fas fa-cog"></i>
+                            Rust Server Settings
+                        </h3>
+                        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
+                            <button
+                                onClick={handleSave}
+                                disabled={!hasChanges}
+                                className="flex-1 sm:flex-none px-4 py-2 bg-chardonnay-500 text-white rounded 
+                                    hover:bg-chardonnay-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                                Save
+                            </button>
+                            <button
+                                onClick={handleExport}
+                                className="flex-1 sm:flex-none px-4 py-2 bg-neutral-600 text-white rounded 
+                                    hover:bg-neutral-700 transition-colors"
+                                title="Export configuration"
+                            >
+                                <i className="fas fa-download"></i>
+                            </button>
+                            <button
+                                onClick={handleImport}
+                                className="flex-1 sm:flex-none px-4 py-2 bg-neutral-600 text-white rounded 
+                                    hover:bg-neutral-700 transition-colors"
+                                title="Import configuration"
+                            >
+                                <i className="fas fa-upload"></i>
+                            </button>
+                            <button
+                                onClick={handleReset}
+                                className="flex-1 sm:flex-none px-4 py-2 bg-neutral-600 text-white rounded 
+                                    hover:bg-neutral-700 transition-colors"
+                                title="Reset to defaults"
+                            >
+                                <i className="fas fa-undo"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div className="mt-2 sm:mt-4 flex-1 min-h-0 overflow-hidden">
+                        <div className="h-full overflow-y-auto scrollbar-thin scrollbar-thumb-neutral-600 
+                            scrollbar-track-neutral-800 hover:scrollbar-thumb-neutral-500">
+                            {renderConfigSection()}
+                        </div>
+                    </div>
                 </div>
             </div>
             
-            {toast && (
-                <Toast
-                    message={toast.message}
-                    type={toast.type}
-                    onClose={() => setToast(null)}
-                />
-            )}
+            {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
         </div>
     );
 };
