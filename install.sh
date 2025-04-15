@@ -72,12 +72,44 @@ install_systemd_service() {
     print_success "Systemd service installed successfully"
 }
 
+# Function to install web server systemd service
+install_web_systemd_service() {
+    print_header "Installing Web Server Systemd Service"
+    
+    # Copy and configure service file
+    print_step "Installing web server service file..."
+    SERVICE_PATH="/etc/systemd/system/hophop-web-server.service"
+    INSTALL_PATH="$HOME/HopHopBuildServer"
+    
+    # Create temporary service file with replacements
+    sed -e "s|%USER%|$USER|g" \
+        -e "s|%INSTALL_PATH%|$INSTALL_PATH|g" \
+        src/hophop/web_server/systemd/hophop-web-server.service | sudo tee "$SERVICE_PATH" > /dev/null
+    
+    # Add sudoers entry for service control
+    print_step "Setting up web service permissions..."
+    SUDOERS_CONTENT="$USER ALL=(ALL) NOPASSWD: /bin/systemctl start hophop-web-server, /bin/systemctl stop hophop-web-server, /bin/systemctl restart hophop-web-server, /bin/systemctl status hophop-web-server, /bin/systemctl enable hophop-web-server, /bin/systemctl disable hophop-web-server, /bin/journalctl -u hophop-web-server"
+    echo "$SUDOERS_CONTENT" | sudo tee "/etc/sudoers.d/hophop-web-server"
+    sudo chmod 440 "/etc/sudoers.d/hophop-web-server"
+    
+    # Reload systemd daemon
+    print_step "Reloading systemd daemon..."
+    sudo systemctl daemon-reload
+    
+    # Enable the service
+    print_step "Enabling web service..."
+    sudo systemctl enable hophop-web-server
+    
+    print_success "Web server systemd service installed successfully"
+}
+
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
         --service-only)
             format_setup
             install_systemd_service
+            install_web_systemd_service
             exit 0
             ;;
         *)
@@ -157,21 +189,31 @@ pip install -e .
 # Add format setup at the start of the actual installation
 format_setup
 
-# Install systemd service at the end of installation
+# Install systemd services at the end of installation
 install_systemd_service
+install_web_systemd_service
 
 # Update the final installation message
 print_header "Installation Complete!"
-echo -e "${BOLD}To start the web server, run:${COLOR_RESET}"
+echo -e "${BOLD}Both servers are installed as systemd services.${COLOR_RESET}"
 echo
-print_command "cd $HOME/HopHopBuildServer"
-print_command "source venv/bin/activate"
-print_command "hophop-web-server"
-echo
-echo -e "${BOLD}To manage the Rust server, use:${COLOR_RESET}"
+echo -e "${BOLD}To manage the Rust server:${COLOR_RESET}"
 echo
 print_command "sudo systemctl start hophop-rust-server"
 print_command "sudo systemctl stop hophop-rust-server"
 print_command "sudo systemctl restart hophop-rust-server"
 print_command "sudo systemctl status hophop-rust-server"
+echo
+echo -e "${BOLD}To manage the Web server:${COLOR_RESET}"
+echo
+print_command "sudo systemctl start hophop-web-server"
+print_command "sudo systemctl stop hophop-web-server"
+print_command "sudo systemctl restart hophop-web-server"
+print_command "sudo systemctl status hophop-web-server"
+echo
+echo -e "${BOLD}To manually start the web server if needed:${COLOR_RESET}"
+echo
+print_command "cd $HOME/HopHopBuildServer"
+print_command "source venv/bin/activate"
+print_command "hophop-web-server"
 echo

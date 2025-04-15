@@ -1,0 +1,17 @@
+[Unit]
+Description=HopHop Web Server
+After=network.target
+
+[Service]
+Type=simple
+User=%USER%
+Environment=PYTHONUNBUFFERED=1
+WorkingDirectory=%INSTALL_PATH%
+ExecStart=%INSTALL_PATH%/venv/bin/hophop-web-server
+Restart=on-failure
+RestartSec=5s
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target 
