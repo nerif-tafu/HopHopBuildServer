@@ -172,7 +172,7 @@ configure_env() {
 }
 
 # Continue with installation if folder doesn't exist
-sudo apt install lib32stdc++6 python3-pip python3.12-venv git -y
+sudo apt install lib32stdc++6 python3-pip python3.12-venv git mono-devel mono-complete -y
 cd $HOME
 git clone https://github.com/nerif-tafu/HopHopBuildServer.git
 cd HopHopBuildServer

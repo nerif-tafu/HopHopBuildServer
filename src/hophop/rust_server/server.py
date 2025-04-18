@@ -132,6 +132,19 @@ def base_install():
         carbon_path = os.path.join(PATH_RUST_SERVER, "carbon")
         carbon_download = os.path.join(PATH_TMP, "carbon.tar.gz")
         
+        # Backup config.json if it exists
+        config_backup = None
+        config_path = os.path.join(carbon_path, "config.json")
+        if os.path.exists(config_path):
+            print("Backing up Carbon configuration...")
+            try:
+                with open(config_path, 'r') as config_file:
+                    config_backup = json.load(config_file)
+                    # Ensure DeveloperMode is enabled in the backup
+                    config_backup["DeveloperMode"] = True
+            except Exception as e:
+                print(f"Error backing up config.json: {e}")
+        
         print("Cleaning up old Carbon installation...")
         if os.path.exists(carbon_path):
             shutil.rmtree(carbon_path)
@@ -152,6 +165,29 @@ def base_install():
         with tarfile.open(carbon_download, "r:gz") as tar_ref:
             tar_ref.extractall(PATH_RUST_SERVER)
         print("Carbon installation temporarily disabled")
+        
+        # Restore config backup if we had one
+        if config_backup:
+            print("Restoring Carbon configuration with DeveloperMode enabled...")
+            try:
+                with open(config_path, 'w') as config_file:
+                    json.dump(config_backup, config_file, indent=2)
+                print("Configuration restored successfully")
+            except Exception as e:
+                print(f"Error restoring config.json: {e}")
+        # If no backup but config exists in new installation, enable developer mode
+        elif os.path.exists(config_path):
+            print("Enabling DeveloperMode in new Carbon installation...")
+            try:
+                with open(config_path, 'r') as config_file:
+                    config_data = json.load(config_file)
+                config_data["DeveloperMode"] = True
+                with open(config_path, 'w') as config_file:
+                    json.dump(config_data, config_file, indent=2)
+                print("DeveloperMode enabled successfully")
+            except Exception as e:
+                print(f"Error updating new config.json: {e}")
+                
     except Exception as e:
         print("Error occurred during Carbon update:", e)
 
@@ -175,6 +211,27 @@ def start_rust_server():
 
         # Run base installation
         base_install()
+        
+        # Enable developer mode in Carbon config
+        carbon_config_path = os.path.join(PATH_RUST_SERVER, "carbon", "config.json")
+        if os.path.exists(carbon_config_path):
+            print("Enabling Carbon developer mode...")
+            try:
+                with open(carbon_config_path, 'r') as config_file:
+                    config_data = json.load(config_file)
+                
+                # Change DeveloperMode to true
+                config_data["DeveloperMode"] = True
+                
+                # Write updated config back to file
+                with open(carbon_config_path, 'w') as config_file:
+                    json.dump(config_data, config_file, indent=2)
+                
+                print("Successfully enabled Carbon developer mode")
+            except Exception as e:
+                print(f"Error updating Carbon config: {e}")
+        else:
+            print(f"Carbon config not found at {carbon_config_path}")
         
         # Define the list of users
         users = [
