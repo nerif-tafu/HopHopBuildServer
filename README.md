@@ -60,3 +60,26 @@ hophop-rust-server
 ```
 
 To edit the rust scripts you will need to use either Visual Studio 2022 or JetBrains Rider. Select the `/src/hophop/rust_server/scripts` folder as the project root.
+
+### Debugging
+
+To enable debugging in JetBrains Rider you will need to follow these four steps:
+
+Go to Run -> Attach to Unity Process.
+
+![](img/debug-1.png)
+
+Select "Add player Address Manually".
+
+![](img/debug-2.png)
+
+Fill out the following fields.
+
+![](img/debug-3.png)
+
+Start the debugger by selecting the correct debug configuration and pressing the green bug.
+
+![](img/debug-4.png)
+
+
+

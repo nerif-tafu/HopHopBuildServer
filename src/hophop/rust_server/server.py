@@ -233,6 +233,19 @@ def start_rust_server():
         else:
             print(f"Carbon config not found at {carbon_config_path}")
         
+        # Create doorstop_config.ini for debugging
+        doorstop_config_path = os.path.join(PATH_RUST_SERVER, "doorstop_config.ini")
+        print("Creating doorstop_config.ini for debugging...")
+        try:
+            with open(doorstop_config_path, 'w') as config_file:
+                config_file.write("[UnityMono]\n")
+                config_file.write("debug_enabled=true\n")
+                config_file.write("debug_suspend=true\n")
+                config_file.write("debug_address=127.0.0.1:5337\n")
+            print("Successfully created doorstop_config.ini")
+        except Exception as e:
+            print(f"Error creating doorstop_config.ini: {e}")
+        
         # Define the list of users
         users = [
             "ownerid 76561198183150138 \"Clayton (Rust)\"",
