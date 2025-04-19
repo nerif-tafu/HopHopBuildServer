@@ -10,7 +10,7 @@ namespace Carbon.Plugins
 {
     [Info("Settings", "Assistant", "1.0.0")]
     [Description("Server settings management")]
-    public class settings : CarbonPlugin
+    public class Settings : CarbonPlugin
     {
         private static class UI
         {

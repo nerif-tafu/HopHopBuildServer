@@ -1,8 +1,8 @@
 namespace Carbon.Plugins
 {
-    [Info ( "test_plugin", "test_plugin", "1.1.0" )]
-    [Description ( "test_plugin" )]
-    public class test_plugin : CarbonPlugin
+    [Info ( "TestPlugin", "TestPlugin", "1.1.0" )]
+    [Description ( "TestPlugin" )]
+    public class TestPlugin : CarbonPlugin
     {
         private void OnServerInitialized ()
         {

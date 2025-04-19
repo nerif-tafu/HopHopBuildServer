@@ -4,6 +4,9 @@ tmp/*
 .idea/*
 .env.local
 venv/
+src/hophop/rust_server/scripts/.idea/*
+src/hophop/rust_server/scripts/bin/
+src/hophop/rust_server/scripts/obj/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -179,3 +182,4 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+Folder.DotSettings.user

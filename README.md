@@ -58,3 +58,5 @@ hophop-web-server
 # Run the rust server
 hophop-rust-server
 ```
+
+To edit the rust scripts you will need to use either Visual Studio 2022 or JetBrains Rider. Select the `/src/hophop/rust_server/scripts` folder as the project root.
