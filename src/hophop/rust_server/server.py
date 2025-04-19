@@ -238,10 +238,24 @@ def start_rust_server():
         print("Creating doorstop_config.ini for debugging...")
         try:
             with open(doorstop_config_path, 'w') as config_file:
+                # General section
+                config_file.write("[General]\n")
+                config_file.write("enabled = true\n")
+                config_file.write("ignore_disable_switch=false\n")
+                config_file.write("target_assembly = carbon/managed/Carbon.Preloader.dll\n")
+                config_file.write("\n")
+                
+                # UnityMono section
                 config_file.write("[UnityMono]\n")
                 config_file.write("debug_enabled=true\n")
                 config_file.write("debug_suspend=true\n")
                 config_file.write("debug_address=127.0.0.1:5337\n")
+                config_file.write("\n")
+                
+                # Il2Cpp section
+                config_file.write("[Il2Cpp]\n")
+                config_file.write("# Not used\n")
+                
             print("Successfully created doorstop_config.ini")
         except Exception as e:
             print(f"Error creating doorstop_config.ini: {e}")
@@ -280,6 +294,9 @@ def start_rust_server():
         os.environ["TERM"] = "xterm"
         os.environ["DOORSTOP_ENABLED"] = "1"
         os.environ["DOORSTOP_TARGET_ASSEMBLY"] = os.path.join(PATH_RUST_SERVER, "carbon/managed/Carbon.Preloader.dll")
+        os.environ["DOORSTOP_MONO_DEBUG_ENABLED"] = "1"
+        os.environ["DOORSTOP_MONO_DEBUG_SUSPEND"] = "1"
+        os.environ["DOORSTOP_MONO_DEBUG_ADDRESS"] = "127.0.0.1:5337"
         os.environ["LD_PRELOAD"] = os.path.join(PATH_RUST_SERVER, "libdoorstop.so")
         os.environ["LD_LIBRARY_PATH"] = os.path.join(PATH_RUST_SERVER, "RustDedicated_Data", "Plugins", "x86_64")
         
