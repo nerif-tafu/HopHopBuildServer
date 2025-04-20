@@ -1,152 +1,107 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using Carbon.Core;
-using Oxide.Core;
-using Oxide.Game.Rust.Libraries;
+using Newtonsoft.Json;
+using Oxide.Game.Rust.Cui;
 using UnityEngine;
+using System.Collections.Generic;
 
 namespace Carbon.Plugins
 {
-    [Info("Settings", "Assistant", "1.0.0")]
-    [Description("Server settings management")]
-    public class Settings : CarbonPlugin
-    {
-        private static class UI
+    [Info("settings", "nerif-tafu", "1.0.0")]
+    [Description("Simple UI toggle example")]
+    public class settings : CarbonPlugin
+   {
+        private const string UiParent = "settings_ui";
+        private readonly HashSet<ulong> _uiOpen = new HashSet<ulong>();
+
+        #region UI Logic
+
+        private bool HasUI(BasePlayer player) => _uiOpen.Contains(player.userID);
+        private void MarkUIOpen(BasePlayer player) => _uiOpen.Add(player.userID);
+        private void MarkUIClose(BasePlayer player) => _uiOpen.Remove(player.userID);
+
+        private void CreateUI(BasePlayer player)
         {
-            public static class Colors
+            DestroyUI(player); // Clean start
+
+            var cui = new CuiElementContainer();
+
+            // Root Panel (parent)
+            cui.Add(new CuiPanel
             {
-                public const string
-                    CommandColor = "#87CEEB",  // Light Sky Blue - Commands
-                    ErrorColor = "#FF6B6B",    // Soft Red - Errors
-                    SuccessColor = "#98FB98",  // Pale Green - Success
-                    InputColor = "#FFE66D";    // Light Yellow - Input values
-                
-                public static string Colorize(string text, string color) => $"<color={color}>{text}</color>";
-                public static string FormatSuccess(string text) => Colorize($"✓ {text}", SuccessColor);
-                public static string FormatError(string text) => Colorize(text, ErrorColor);
-                public static string FormatCommand(string text) => Colorize(text, CommandColor);
-                public static string FormatInput(string text) => Colorize(text, InputColor);
-            }
-        }
+                Image = { Color = "0 0 0 0.85" },
+                RectTransform = { AnchorMin = "0 0", AnchorMax = "1 1" },
+                CursorEnabled = true,
+            }, "Overlay", UiParent);
 
-        private class SettingsData
-        {
-            public bool GlobalPower { get; set; }
-        }
-
-        private SettingsData _settings;
-
-        private void LoadData()
-        {
-            _settings = Interface.Oxide.DataFileSystem.ReadObject<SettingsData>("server_settings") ?? new SettingsData();
-        }
-
-        private void SaveData()
-        {
-            Interface.Oxide.DataFileSystem.WriteObject("server_settings", _settings);
-        }
-
-        private void OnServerInitialized()
-        {
-            LoadData();
-            cmd.AddChatCommand("settings", this, nameof(OnSettingsCommand));
-
-            // Apply settings on startup
-            if (_settings.GlobalPower)
+            // Sidebar
+            cui.Add(new CuiPanel
             {
-                SetGlobalPower(true);
-            }
+                Image = { Color = "0.1 0.1 0.1 1" },
+                RectTransform = { AnchorMin = "0 0", AnchorMax = "0.25 1" }
+            }, UiParent, "settings_sidebar");
+
+            // Example Nav Buttons
+            AddNavButton(cui, "settings_sidebar", "GENERAL", 0.85f);
+            AddNavButton(cui, "settings_sidebar", "SPAWN", 0.75f);
+            AddNavButton(cui, "settings_sidebar", "PERMISSIONS", 0.65f);
+            AddNavButton(cui, "settings_sidebar", "BACK", 0.15f);
+
+            // Right Content Area
+            cui.Add(new CuiPanel
+            {
+                Image = { Color = "1 0.5 1 0.2" },
+                RectTransform = { AnchorMin = "0.25 0", AnchorMax = "1 1" }
+            }, UiParent, "settings_content");
+
+            CuiHelper.AddUi(player, cui);
+            MarkUIOpen(player);
         }
 
-        private void OnSettingsCommand(BasePlayer player, string command, string[] args)
+        private void DestroyUI(BasePlayer player)
         {
-            if (args.Length == 0)
-            {
-                SendReply(player, $"Usage: /settings {UI.Colors.FormatCommand("<setting>")} {UI.Colors.FormatCommand("<value>")}");
-                SendReply(player, "Available settings:");
-                SendReply(player, $"  {UI.Colors.FormatCommand("global_power")} {UI.Colors.FormatInput("<true/false>")} - Powers all electrical devices");
-                return;
-            }
-
-            string setting = args[0].ToLower();
-            
-            switch (setting)
-            {
-                case "global_power":
-                    if (args.Length < 2)
-                    {
-                        SendReply(player, $"Current global_power: {UI.Colors.FormatInput(_settings.GlobalPower.ToString())}");
-                        return;
-                    }
-
-                    if (!bool.TryParse(args[1], out bool powerValue))
-                    {
-                        SendReply(player, $"{UI.Colors.FormatError("Error:")} Value must be true or false");
-                        return;
-                    }
-
-                    _settings.GlobalPower = powerValue;
-                    SaveData();
-                    SetGlobalPower(powerValue);
-
-                    SendReply(player, UI.Colors.FormatSuccess($"Set global_power to {powerValue}"));
-                    break;
-
-                default:
-                    SendReply(player, $"{UI.Colors.FormatError("Error:")} Unknown setting '{setting}'");
-                    break;
-            }
+            CuiHelper.DestroyUi(player, UiParent);
+            MarkUIClose(player);
         }
 
-        private void SetGlobalPower(bool enabled)
+        private void AddNavButton(CuiElementContainer cui, string parent, string text, float yAnchor)
         {
-            foreach (var entity in BaseNetworkable.serverEntities)
+            string name = $"btn_{text.ToLower()}";
+            cui.Add(new CuiButton
             {
-                var ioEntity = entity as IOEntity;
-                if (ioEntity != null)
+                Button = { Color = "0.8 0.2 0.2 1", Command = "", Close = "" },
+                RectTransform = { AnchorMin = $"0 {yAnchor}", AnchorMax = $"1 {yAnchor + 0.08f}" },
+                Text = { Text = text, FontSize = 16, Align = TextAnchor.MiddleCenter }
+            }, parent, name);
+        }
+
+        #endregion
+
+        #region Hooks
+
+        private void OnPlayerInput(BasePlayer player, InputState input)
+        {
+            if (player == null || input == null) return;
+            if (input.WasJustPressed(BUTTON.FIRE_THIRD))
+            {
+                Puts(HasUI(player));
+                if (HasUI(player))
                 {
-                    if (enabled)
-                    {
-                        // Set power flags
-                        ioEntity.SetFlag(BaseEntity.Flags.Reserved8, true);
-                        ioEntity.SetFlag(IOEntity.Flag_HasPower, true);
-                        
-                        // Set power directly
-                        ioEntity.currentEnergy = (int)100f;
-                        ioEntity.SetFlag(IOEntity.Flag_HasPower, true);
-                        
-                        // Handle special cases
-                        var autoTurret = ioEntity as AutoTurret;
-                        if (autoTurret != null)
-                        {
-                            autoTurret.SetFlag(AutoTurret.Flag_HasPower, true);
-                        }
-
-                        // Update clients
-                        ioEntity.MarkDirty();
-                        ioEntity.SendNetworkUpdate();
-                    }
-                    else
-                    {
-                        // Remove power
-                        ioEntity.SetFlag(BaseEntity.Flags.Reserved8, false);
-                        ioEntity.SetFlag(IOEntity.Flag_HasPower, false);
-                        ioEntity.currentEnergy = 0;
-                        
-                        // Handle special cases
-                        var autoTurret = ioEntity as AutoTurret;
-                        if (autoTurret != null)
-                        {
-                            autoTurret.SetFlag(AutoTurret.Flag_HasPower, false);
-                        }
-
-                        // Update clients
-                        ioEntity.MarkDirty();
-                        ioEntity.SendNetworkUpdate();
-                    }
+                    player.SetPlayerFlag(BasePlayer.PlayerFlags.Spectating, false);
+                    DestroyUI(player);
                 }
+                else
+                {
+                    CreateUI(player);
+                    player.SetPlayerFlag(BasePlayer.PlayerFlags.Spectating, true);
+                }
+                    
             }
         }
+
+        private void OnPlayerDisconnected(BasePlayer player)
+        {
+            if (player != null) MarkUIClose(player);
+        }
+
+        #endregion
     }
-} 
+}
