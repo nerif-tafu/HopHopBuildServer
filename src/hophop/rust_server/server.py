@@ -241,15 +241,15 @@ def start_rust_server():
             with open(doorstop_config_path, 'w') as config_file:
                 # General section
                 config_file.write("[General]\n")
-                config_file.write(f"enabled = {'true' if DOORSTOP_ENABLED else 'false'}\n")
+                config_file.write(f"enabled=true\n")
                 config_file.write("ignore_disable_switch=false\n")
                 config_file.write("target_assembly = carbon/managed/Carbon.Preloader.dll\n")
                 config_file.write("\n")
                 
                 # UnityMono section
                 config_file.write("[UnityMono]\n")
-                config_file.write("debug_enabled=true\n")
-                config_file.write("debug_suspend=true\n")
+                config_file.write(f"debug_enabled={'true' if DOORSTOP_ENABLED else 'false'}\n")
+                config_file.write(f"debug_suspend=false\n")
                 config_file.write("debug_address=127.0.0.1:5337\n")
                 config_file.write("\n")
                 
@@ -295,14 +295,12 @@ def start_rust_server():
         os.environ["TERM"] = "xterm"
         os.environ["DOORSTOP_ENABLED"] = "1" if DOORSTOP_ENABLED else "0"
         os.environ["DOORSTOP_TARGET_ASSEMBLY"] = os.path.join(PATH_RUST_SERVER, "carbon/managed/Carbon.Preloader.dll")
-        os.environ["DOORSTOP_MONO_DEBUG_ENABLED"] = "1"
-        os.environ["DOORSTOP_MONO_DEBUG_SUSPEND"] = "1"
+        os.environ["DOORSTOP_MONO_DEBUG_ENABLED"] = "1" if DOORSTOP_ENABLED else "0"
+        os.environ["DOORSTOP_MONO_DEBUG_SUSPEND"] = "0"
         os.environ["DOORSTOP_MONO_DEBUG_ADDRESS"] = "127.0.0.1:5337"
         
-        # Only set LD_PRELOAD if doorstop is enabled
-        if DOORSTOP_ENABLED:
-            os.environ["LD_PRELOAD"] = os.path.join(PATH_RUST_SERVER, "libdoorstop.so")
-            
+        # Only set LD_PRELOAD if doorstop is enabled            
+        os.environ["LD_PRELOAD"] = os.path.join(PATH_RUST_SERVER, "libdoorstop.so")
         os.environ["LD_LIBRARY_PATH"] = os.path.join(PATH_RUST_SERVER, "RustDedicated_Data", "Plugins", "x86_64")
         
         # Running RustDedicated server
