@@ -208,6 +208,7 @@ def start_rust_server():
         APP_LISTENIP = get_env_str('APP_LISTENIP', '')
         APP_PUBLICIP = get_env_str('APP_PUBLICIP', '')
         RUST_BRANCH = get_env_str('RUST_BRANCH', 'master')
+        DOORSTOP_ENABLED = get_env_str('DOORSTOP_ENABLED', 'true').lower() == 'true'
 
         # Run base installation
         base_install()
@@ -240,7 +241,7 @@ def start_rust_server():
             with open(doorstop_config_path, 'w') as config_file:
                 # General section
                 config_file.write("[General]\n")
-                config_file.write("enabled = true\n")
+                config_file.write(f"enabled = {'true' if DOORSTOP_ENABLED else 'false'}\n")
                 config_file.write("ignore_disable_switch=false\n")
                 config_file.write("target_assembly = carbon/managed/Carbon.Preloader.dll\n")
                 config_file.write("\n")
@@ -292,12 +293,16 @@ def start_rust_server():
         
         # Set environment variables
         os.environ["TERM"] = "xterm"
-        os.environ["DOORSTOP_ENABLED"] = "1"
+        os.environ["DOORSTOP_ENABLED"] = "1" if DOORSTOP_ENABLED else "0"
         os.environ["DOORSTOP_TARGET_ASSEMBLY"] = os.path.join(PATH_RUST_SERVER, "carbon/managed/Carbon.Preloader.dll")
         os.environ["DOORSTOP_MONO_DEBUG_ENABLED"] = "1"
         os.environ["DOORSTOP_MONO_DEBUG_SUSPEND"] = "1"
         os.environ["DOORSTOP_MONO_DEBUG_ADDRESS"] = "127.0.0.1:5337"
-        os.environ["LD_PRELOAD"] = os.path.join(PATH_RUST_SERVER, "libdoorstop.so")
+        
+        # Only set LD_PRELOAD if doorstop is enabled
+        if DOORSTOP_ENABLED:
+            os.environ["LD_PRELOAD"] = os.path.join(PATH_RUST_SERVER, "libdoorstop.so")
+            
         os.environ["LD_LIBRARY_PATH"] = os.path.join(PATH_RUST_SERVER, "RustDedicated_Data", "Plugins", "x86_64")
         
         # Running RustDedicated server

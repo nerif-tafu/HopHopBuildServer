@@ -137,6 +137,14 @@ const configValidation = {
             if (!ipRegex.test(value)) return 'Must be a valid IP address';
             return null;
         }
+    },
+    DOORSTOP_ENABLED: {
+        validate: (value) => {
+            if (value === undefined || value === null) return 'Doorstop enabled setting is required';
+            if (typeof value === 'boolean') return null;
+            if (value === 'true' || value === 'false') return null;
+            return 'Must be true or false';
+        }
     }
 };
 

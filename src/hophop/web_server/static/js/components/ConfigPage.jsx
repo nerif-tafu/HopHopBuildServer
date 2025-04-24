@@ -70,6 +70,30 @@ const ConfigPage = () => {
         const defaultValue = config.defaults[key] || '';
         const error = errors[key];
 
+        // Special case for boolean values (like DOORSTOP_ENABLED) to use a toggle switch
+        if (key === 'DOORSTOP_ENABLED') {
+            const isEnabled = currentValue === 'true' || currentValue === true;
+            return (
+                <div className="flex items-center">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                        <input 
+                            type="checkbox" 
+                            checked={isEnabled}
+                            onChange={(e) => handleConfigChange(key, e.target.checked.toString())}
+                            className="sr-only peer" 
+                        />
+                        <div className={`w-11 h-6 bg-neutral-700 peer-focus:outline-none rounded-full peer 
+                            ${isEnabled ? 'peer-checked:after:translate-x-full peer-checked:bg-chardonnay-500' : ''} 
+                            after:content-[''] after:absolute after:top-[2px] after:left-[2px] 
+                            after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all`}></div>
+                    </label>
+                    <span className="ml-3 text-sm font-medium text-white">
+                        {isEnabled ? 'Enabled' : 'Disabled'}
+                    </span>
+                </div>
+            );
+        }
+
         // Special case for RUST_BRANCH to use a dropdown
         if (key === 'RUST_BRANCH') {
             return (
