@@ -22,6 +22,8 @@ from datetime import datetime
 import shutil
 from werkzeug.utils import secure_filename
 import select
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'your-secret-key')
@@ -58,6 +60,48 @@ PLUGINS_DIR = os.path.join(ROOT_DIR, "rust_server/carbon/plugins")
 # Ensure directories exist
 os.makedirs(SCRIPTS_DIR, exist_ok=True)
 os.makedirs(PLUGINS_DIR, exist_ok=True)
+
+# Create a dictionary to track auto refresh settings for plugins
+AUTO_REFRESH_PLUGINS = {}
+AUTO_REFRESH_DATA_FILE = os.path.join(ROOT_DIR, 'auto_refresh_plugins.json')
+
+# Load auto refresh settings from file if it exists
+try:
+    if os.path.exists(AUTO_REFRESH_DATA_FILE):
+        with open(AUTO_REFRESH_DATA_FILE, 'r') as f:
+            AUTO_REFRESH_PLUGINS = json.load(f)
+except Exception as e:
+    print(f"Error loading auto refresh settings: {e}")
+    AUTO_REFRESH_PLUGINS = {}
+
+# File system event handler for auto-refreshing plugins
+class PluginFileHandler(FileSystemEventHandler):
+    def on_modified(self, event):
+        if not event.is_directory and event.src_path.endswith('.cs'):
+            plugin_file = os.path.basename(event.src_path)
+            plugin_name = plugin_file[:-3]  # Remove .cs extension
+            
+            # Check if this plugin has auto refresh enabled
+            if plugin_name in AUTO_REFRESH_PLUGINS and AUTO_REFRESH_PLUGINS[plugin_name]:
+                print(f"Auto refreshing plugin: {plugin_name}")
+                try:
+                    # Copy the updated plugin file to the active plugins directory
+                    source_path = os.path.join(SCRIPTS_DIR, plugin_file)
+                    target_path = os.path.join(PLUGINS_DIR, plugin_file)
+                    shutil.copy2(source_path, target_path)
+                    
+                    # Notify clients that plugin was refreshed
+                    socketio.emit('plugin_refreshed', {
+                        'name': plugin_name,
+                        'timestamp': datetime.now().isoformat()
+                    })
+                except Exception as e:
+                    print(f"Error auto-refreshing plugin {plugin_name}: {e}")
+
+# Start the file system observer
+observer = Observer()
+observer.schedule(PluginFileHandler(), path=SCRIPTS_DIR, recursive=False)
+observer.start()
 
 def is_port_in_use(port: int) -> bool:
     """Check if a port is already in use"""
@@ -578,6 +622,14 @@ def get_plugin_status(plugin_name):
     """Check if a plugin is active (exists in plugins directory)"""
     return os.path.exists(os.path.join(PLUGINS_DIR, plugin_name))
 
+def save_auto_refresh_settings():
+    """Save auto refresh settings to file"""
+    try:
+        with open(AUTO_REFRESH_DATA_FILE, 'w') as f:
+            json.dump(AUTO_REFRESH_PLUGINS, f)
+    except Exception as e:
+        print(f"Error saving auto refresh settings: {e}")
+
 @app.route('/api/plugins', methods=['GET'])
 def list_plugins():
     """List all available plugins and their status"""
@@ -595,6 +647,7 @@ def list_plugins():
                 plugins.append({
                     'name': plugin_name,
                     'active': get_plugin_status(file),
+                    'autoRefresh': AUTO_REFRESH_PLUGINS.get(plugin_name, False),
                     'hasConfig': os.path.exists(os.path.join(config_dir, f'{plugin_name}.json')),
                     'hasData': os.path.exists(os.path.join(data_dir, f'{plugin_name}.json')),
                     'hasLang': os.path.exists(os.path.join(lang_dir, f'{plugin_name}.json'))
@@ -775,6 +828,36 @@ def monitor_journal():
 # Start the journal monitor in a separate thread
 journal_thread = threading.Thread(target=monitor_journal, daemon=True)
 journal_thread.start()
+
+@app.route('/api/plugins/toggle-auto-refresh', methods=['POST'])
+def toggle_auto_refresh():
+    """Toggle auto refresh for a plugin"""
+    try:
+        data = request.json
+        name = data.get('name')
+        enable = data.get('enable', False)
+        
+        if not name:
+            return jsonify({'error': 'Plugin name is required'})
+
+        # Check if plugin exists
+        base_path = os.path.join(os.path.expanduser('~'), 'HopHopBuildServer')
+        source_path = os.path.join(base_path, 'src/hophop/rust_server/scripts', f'{name}.cs')
+        
+        if not os.path.exists(source_path):
+            return jsonify({'error': 'Plugin not found'})
+
+        # Update auto refresh setting
+        AUTO_REFRESH_PLUGINS[name] = enable
+        save_auto_refresh_settings()
+        
+        message = f"Auto refresh {'enabled' if enable else 'disabled'} for {name}"
+        return jsonify({
+            'message': message,
+            'autoRefresh': enable
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == "__main__":
     run_server() 

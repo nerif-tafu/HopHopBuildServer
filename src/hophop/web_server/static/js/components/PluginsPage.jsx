@@ -13,7 +13,21 @@ const PluginsPage = () => {
 
     React.useEffect(() => {
         fetchPlugins();
+        
+        // Listen for plugin refresh events
+        const socket = window.socket || window.io();
+        socket.on('plugin_refreshed', handlePluginRefreshed);
+        
+        return () => {
+            socket.off('plugin_refreshed', handlePluginRefreshed);
+        };
     }, []);
+    
+    const handlePluginRefreshed = (data) => {
+        showToast(`Plugin ${data.name} was automatically refreshed`, 'info');
+        // Refresh the plugins list to reflect changes
+        fetchPlugins();
+    };
 
     const fetchPlugins = async () => {
         try {
@@ -124,6 +138,36 @@ const PluginsPage = () => {
                 setPlugins(plugins.map(p => 
                     p.name === plugin.name 
                         ? {...p, active: data.active}
+                        : p
+                ));
+            }
+        } catch (error) {
+            showToast(error.message, 'error');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const toggleAutoRefresh = async (plugin) => {
+        setIsLoading(true);
+        try {
+            const response = await fetch('/api/plugins/toggle-auto-refresh', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: plugin.name,
+                    enable: !plugin.autoRefresh
+                })
+            });
+            const data = await response.json();
+            
+            if (data.error) {
+                showToast(data.error, 'error');
+            } else {
+                showToast(data.message, 'success');
+                setPlugins(plugins.map(p => 
+                    p.name === plugin.name 
+                        ? {...p, autoRefresh: data.autoRefresh}
                         : p
                 ));
             }
@@ -266,6 +310,21 @@ const PluginsPage = () => {
             >
                 <i className={`fas ${plugin.active ? 'fa-toggle-on' : 'fa-toggle-off'}`}></i>
                 {plugin.active ? 'Enabled' : 'Disabled'}
+            </button>
+            
+            <button
+                onClick={() => toggleAutoRefresh(plugin)}
+                disabled={isLoading}
+                className={`px-3 py-1.5 text-sm rounded text-white disabled:opacity-50 
+                    transition-colors flex items-center gap-1.5
+                    ${plugin.autoRefresh 
+                        ? 'bg-blue-500 hover:bg-blue-600' 
+                        : 'bg-gray-500 hover:bg-gray-600'
+                    }`}
+                title="Auto-refresh the plugin when its file is saved"
+            >
+                <i className={`fas ${plugin.autoRefresh ? 'fa-sync-alt fa-spin' : 'fa-sync-alt'}`}></i>
+                Auto Refresh
             </button>
 
             <button
@@ -428,6 +487,21 @@ const PluginsPage = () => {
                                         >
                                             <i className={`fas ${plugin.active ? 'fa-toggle-on' : 'fa-toggle-off'}`}></i>
                                             <span className="sm:hidden md:inline">{plugin.active ? 'Enabled' : 'Disabled'}</span>
+                                        </button>
+                                        
+                                        <button
+                                            onClick={() => toggleAutoRefresh(plugin)}
+                                            disabled={isLoading}
+                                            className={`flex-1 sm:flex-none px-3 py-1.5 text-sm rounded text-white disabled:opacity-50 
+                                                transition-colors flex items-center justify-center gap-1.5
+                                                ${plugin.autoRefresh 
+                                                    ? 'bg-blue-500 hover:bg-blue-600' 
+                                                    : 'bg-gray-500 hover:bg-gray-600'
+                                                }`}
+                                            title="Auto-refresh the plugin when its file is saved"
+                                        >
+                                            <i className={`fas ${plugin.autoRefresh ? 'fa-sync-alt fa-spin' : 'fa-sync-alt'}`}></i>
+                                            <span className="sm:hidden md:inline">Auto</span>
                                         </button>
 
                                         <button
